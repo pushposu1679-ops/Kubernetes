@@ -1,0 +1,341 @@
+# Kubernetes Day 1 Notes
+
+# What is Kubernetes?
+
+Kubernetes (K8s) is an open-source **Container Orchestration Platform** used to automate the deployment, management, scaling, networking and recovery of containers.
+
+---
+
+# Why was Kubernetes introduced?
+
+Docker is excellent for creating and running containers.
+
+However, Docker alone becomes difficult to manage in a production environment where hundreds or thousands of containers are running.
+
+Kubernetes was introduced to solve these production challenges.
+
+---
+
+# Problems with Docker in Production
+
+## 1. Container Failure
+
+If a container crashes,
+
+```text
+Container
+
+❌ Crashed
+```
+
+Someone has to restart it manually (unless restart policies are configured).
+
+In production this can happen anytime, even during the night.
+
+---
+
+## 2. Scaling
+
+Suppose traffic increases.
+
+```text
+100 Users
+
+↓
+
+10,000 Users
+
+↓
+
+100,000 Users
+```
+
+One container cannot handle all requests.
+
+Docker requires manually creating additional containers.
+
+Example
+
+```bash
+docker run myapp:v1
+
+docker run myapp:v1
+
+docker run myapp:v1
+```
+
+Managing this manually is difficult.
+
+---
+
+## 3. Multiple Servers
+
+Suppose a company has
+
+```text
+Server 1
+
+Server 2
+
+Server 3
+
+...
+
+Server 10
+```
+
+and
+
+```text
+100 Containers
+```
+
+Questions arise:
+
+* Which server should run which container?
+* What if one server becomes full?
+* What if one server crashes?
+
+Docker does not automatically manage containers across multiple servers.
+
+---
+
+## 4. Load Balancing
+
+Suppose multiple containers are running.
+
+```text
+Container 1
+
+Container 2
+
+Container 3
+```
+
+How should incoming users be distributed among these containers?
+
+Docker alone does not provide production-grade load balancing.
+
+---
+
+## 5. Application Updates
+
+Suppose Version 2 of the application is released.
+
+Stopping the old container and starting a new one manually may cause downtime.
+
+Production environments require updates with minimal or no downtime.
+
+---
+
+## 6. Self-Healing
+
+Suppose
+
+```text
+Container
+
+❌ Crashed
+```
+
+Docker does not automatically create a replacement container as part of orchestration.
+
+Managing failed containers manually becomes difficult at scale.
+
+---
+
+## 7. Server Failure
+
+Suppose
+
+```text
+Server 5
+
+Container A
+
+Container B
+
+Container C
+
+💥 Server Crashed
+```
+
+All containers running on that server stop immediately.
+
+Production systems cannot wait for manual recovery.
+
+---
+
+# What Companies Need
+
+Companies require a platform that can
+
+* Restart failed containers
+* Automatically create more containers when traffic increases
+* Remove extra containers when traffic decreases
+* Perform load balancing
+* Deploy applications with minimal downtime
+* Manage containers across multiple servers
+* Recover automatically from failures
+
+---
+
+# What is Container Orchestration?
+
+Container Orchestration means
+
+**Automatically managing containers throughout their lifecycle.**
+
+It includes:
+
+* Deployment
+* Scheduling
+* Scaling
+* Networking
+* Monitoring
+* Self-Healing
+* Load Balancing
+
+---
+
+# Kubernetes
+
+Kubernetes automates container management.
+
+It continuously monitors the cluster and ensures the desired number of containers are always running.
+
+---
+
+# Docker vs Kubernetes
+
+| Docker                         | Kubernetes                                  |
+| ------------------------------ | ------------------------------------------- |
+| Creates and runs containers    | Manages and orchestrates containers         |
+| Containerization platform      | Container orchestration platform            |
+| Works mainly on one machine    | Manages containers across multiple machines |
+| Manual scaling                 | Automatic scaling                           |
+| Manual recovery                | Self-Healing                                |
+| Basic networking               | Advanced networking                         |
+| Docker Compose for one machine | Cluster-wide management                     |
+
+---
+
+# Is Kubernetes a Replacement for Docker?
+
+**No.**
+
+Docker creates containers.
+
+Kubernetes manages containers.
+
+Relationship
+
+```text
+Application
+
+↓
+
+Docker Image
+
+↓
+
+Container
+
+↓
+
+Kubernetes manages the container
+```
+
+---
+
+# Real-Life Analogy
+
+## Docker
+
+A chef who prepares one dish.
+
+## Kubernetes
+
+A restaurant manager who
+
+* Assigns chefs
+* Handles rush hours
+* Opens new counters
+* Replaces unavailable chefs
+* Ensures smooth operation
+
+Docker creates containers.
+
+Kubernetes manages containers.
+
+---
+
+# Important Features of Kubernetes
+
+* Container Orchestration
+* Automatic Scaling
+* Self-Healing
+* Load Balancing
+* Automated Deployment
+* Multi-Server Management
+* High Availability
+
+---
+
+# Interview Questions
+
+## What is Kubernetes?
+
+Kubernetes is an open-source container orchestration platform used to automate deployment, scaling, networking and management of containers.
+
+---
+
+## Why do we need Kubernetes when Docker already exists?
+
+Docker creates and runs containers, but managing hundreds of containers across multiple servers manually is difficult.
+
+Kubernetes automates scaling, load balancing, self-healing and container management.
+
+---
+
+## What is Container Orchestration?
+
+Container orchestration is the automated deployment, management, scaling, networking and recovery of containers.
+
+---
+
+## Is Kubernetes a replacement for Docker?
+
+No.
+
+Docker creates containers.
+
+Kubernetes manages and orchestrates those containers.
+
+---
+
+# Key Takeaways
+
+✔ Docker is used for containerization.
+
+✔ Kubernetes is used for container orchestration.
+
+✔ Kubernetes solves production challenges like scaling, self-healing and load balancing.
+
+✔ Docker and Kubernetes work together, not against each other.
+
+---
+
+# Next Topic (Day 2)
+
+* Kubernetes Architecture
+* Cluster
+* Control Plane
+* Worker Node
+* API Server
+* Scheduler
+* etcd
+* kubelet
+* kube-proxy
+* Container Runtime
+
