@@ -1,0 +1,509 @@
+# Kubernetes Day 2 Notes
+
+# Kubernetes Architecture
+
+Kubernetes architecture defines how different components work together to deploy and manage containerized applications.
+
+A Kubernetes Cluster consists of:
+
+* Control Plane
+* Worker Nodes
+
+---
+
+# What is a Kubernetes Cluster?
+
+A Kubernetes Cluster is a collection of multiple servers (nodes) working together to run applications.
+
+It is **NOT another server**.
+
+Think of it as a team of servers.
+
+```text
+Kubernetes Cluster
+
+├── Control Plane
+└── Worker Nodes
+```
+
+---
+
+# Real-Life Analogy
+
+School
+
+↓
+
+Principal
+
+↓
+
+Teachers
+
+↓
+
+Students
+
+Similarly,
+
+```text
+Kubernetes Cluster
+
+↓
+
+Control Plane
+
+↓
+
+Worker Nodes
+
+↓
+
+Pods
+
+↓
+
+Containers
+
+↓
+
+Applications
+```
+
+---
+
+# Control Plane
+
+The Control Plane is the **brain** of Kubernetes.
+
+It manages the entire cluster.
+
+It does **NOT** run applications.
+
+Responsibilities:
+
+* Receives requests
+* Schedules Pods
+* Monitors Worker Nodes
+* Maintains desired state
+* Detects failures
+* Manages the cluster
+
+---
+
+# Worker Node
+
+A Worker Node is a server where applications actually run.
+
+A Worker Node contains:
+
+* kubelet
+* kube-proxy
+* Container Runtime
+* Pods
+
+Applications run on Worker Nodes.
+
+---
+
+# Kubernetes Architecture
+
+```text
+                 Kubernetes Cluster
+
+        +--------------------------------+
+        |         Control Plane          |
+        +--------------------------------+
+                  │
+        -------------------------
+        │           │           │
+        ▼           ▼           ▼
+
+    Worker 1    Worker 2    Worker 3
+```
+
+---
+
+# API Server
+
+API Server is the heart (entry point) of Kubernetes.
+
+Every request first reaches the API Server.
+
+Example
+
+```bash
+kubectl apply -f deployment.yaml
+```
+
+Flow
+
+```text
+User
+
+↓
+
+kubectl
+
+↓
+
+API Server
+```
+
+Responsibilities
+
+* Receives requests
+* Validates requests
+* Communicates with all Kubernetes components
+* Stores information in etcd
+
+---
+
+# Scheduler
+
+Scheduler decides **which Worker Node should run a Pod**.
+
+Example
+
+Worker 1
+
+CPU = 90%
+
+Worker 2
+
+CPU = 20%
+
+Scheduler chooses Worker 2 because it has available resources.
+
+Responsibilities
+
+* Select best Worker Node
+* Check available resources
+* Assign Pods
+
+---
+
+# Controller Manager
+
+Controller Manager continuously checks whether the cluster matches the desired state.
+
+Example
+
+Desired Pods = 3
+
+Current Pods = 2
+
+Controller Manager notices the difference and creates one more Pod.
+
+Responsibilities
+
+* Maintains desired state
+* Recreates failed Pods
+* Ensures required replicas are running
+
+---
+
+# Desired State
+
+Desired State means:
+
+"The number of Pods you want."
+
+Example
+
+Desired
+
+```text
+3 Pods
+```
+
+Current
+
+```text
+2 Pods
+```
+
+Controller Manager creates another Pod until:
+
+```text
+Current = Desired
+```
+
+---
+
+# etcd
+
+etcd is the Kubernetes database.
+
+It stores all cluster information.
+
+Examples
+
+* Pods
+* Nodes
+* Services
+* Secrets
+* ConfigMaps
+* Deployments
+
+Think of etcd as Kubernetes' notebook or memory.
+
+---
+
+# kubelet
+
+Every Worker Node has one kubelet.
+
+kubelet communicates with the Control Plane.
+
+Example
+
+Control Plane
+
+↓
+
+Create Pod
+
+↓
+
+kubelet
+
+↓
+
+Container Runtime
+
+↓
+
+Pod Created
+
+Responsibilities
+
+* Receives instructions
+* Creates Pods
+* Monitors Pods
+* Reports Node status to Control Plane
+
+---
+
+# kube-proxy
+
+kube-proxy manages networking between Pods.
+
+Responsibilities
+
+* Routes network traffic
+* Enables Pod-to-Pod communication
+* Performs Service load balancing
+
+---
+
+# Container Runtime
+
+Container Runtime actually creates and runs containers.
+
+Examples
+
+* containerd
+* CRI-O
+* Docker (older versions)
+
+Responsibilities
+
+* Pull container images
+* Create containers
+* Start containers
+* Stop containers
+
+---
+
+# Complete Flow
+
+When running
+
+```bash
+kubectl apply -f pod.yaml
+```
+
+The request flows like this:
+
+```text
+User
+
+↓
+
+kubectl
+
+↓
+
+API Server
+
+↓
+
+Scheduler
+
+↓
+
+Worker Node
+
+↓
+
+kubelet
+
+↓
+
+Container Runtime
+
+↓
+
+Pod
+
+↓
+
+Container
+
+↓
+
+Application Running
+```
+
+---
+
+# Application Hierarchy
+
+Applications do **NOT** run directly on the Cluster.
+
+They run in the following hierarchy:
+
+```text
+Kubernetes Cluster
+
+↓
+
+Worker Node
+
+↓
+
+Pod
+
+↓
+
+Container
+
+↓
+
+Application
+```
+
+---
+
+# Component Summary
+
+| Component          | Purpose                                          |
+| ------------------ | ------------------------------------------------ |
+| Kubernetes Cluster | Collection of Control Plane and Worker Nodes     |
+| Control Plane      | Brain of Kubernetes                              |
+| Worker Node        | Runs Pods and applications                       |
+| API Server         | Entry point for all requests                     |
+| Scheduler          | Chooses the Worker Node for Pods                 |
+| Controller Manager | Maintains desired state                          |
+| etcd               | Kubernetes database                              |
+| kubelet            | Communicates with Control Plane and manages Pods |
+| kube-proxy         | Networking and load balancing                    |
+| Container Runtime  | Creates and runs containers                      |
+
+---
+
+# Interview Questions
+
+## What is a Kubernetes Cluster?
+
+A Kubernetes Cluster is a collection of Control Plane and Worker Nodes working together to deploy and manage containerized applications.
+
+---
+
+## What is the Control Plane?
+
+The Control Plane is the brain of Kubernetes. It manages the cluster but does not run applications.
+
+---
+
+## What is a Worker Node?
+
+A Worker Node is a server where Pods, containers and applications actually run.
+
+---
+
+## What is the API Server?
+
+API Server is the entry point of Kubernetes. Every request first reaches the API Server.
+
+---
+
+## What is Scheduler?
+
+Scheduler selects the best Worker Node to run newly created Pods.
+
+---
+
+## What is Controller Manager?
+
+Controller Manager ensures the current state of the cluster always matches the desired state.
+
+---
+
+## What is etcd?
+
+etcd is Kubernetes' distributed key-value database that stores all cluster information.
+
+---
+
+## What is kubelet?
+
+kubelet runs on every Worker Node and communicates with the Control Plane to create and monitor Pods.
+
+---
+
+## What is kube-proxy?
+
+kube-proxy manages networking and enables communication between Pods and Services.
+
+---
+
+## What is Container Runtime?
+
+Container Runtime is responsible for pulling images and creating/running containers.
+
+---
+
+# Key Takeaways
+
+✔ A Kubernetes Cluster is a group of servers, not another server.
+
+✔ The Control Plane manages the cluster.
+
+✔ Worker Nodes run Pods and applications.
+
+✔ API Server is the entry point for all Kubernetes requests.
+
+✔ Scheduler selects the Worker Node for Pods.
+
+✔ Controller Manager maintains the desired state.
+
+✔ etcd stores cluster information.
+
+✔ kubelet manages Pods on each Worker Node.
+
+✔ kube-proxy handles networking.
+
+✔ Container Runtime creates and runs containers.
+
+---
+
+# Next Topic (Day 3)
+
+* What is a Pod?
+* Why Kubernetes uses Pods instead of Containers
+* Pod Lifecycle
+* Creating the First Pod
+* kubectl Commands
+
