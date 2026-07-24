@@ -1,0 +1,602 @@
+# Kubernetes - Day 4 Notes
+
+## Topic: Pods
+
+---
+
+# 1. What is a Pod?
+
+A **Pod** is the **smallest deployable unit in Kubernetes**.
+
+A Pod is a wrapper around one or more containers.
+
+```
+Pod
+│
+└── Container
+     │
+     └── Application
+```
+
+**Interview Definition**
+
+> A Pod is the smallest deployable object in Kubernetes that contains one or more containers.
+
+---
+
+# 2. Why Kubernetes uses Pods instead of Containers?
+
+Docker manages **containers**.
+
+Kubernetes manages **Pods**.
+
+Instead of managing containers directly, Kubernetes creates a Pod.
+
+A Pod provides:
+
+* Network
+* IP Address
+* Shared Storage
+* Environment
+* Restart Policy
+
+while the container runs the actual application.
+
+```
+Kubernetes
+      │
+      ▼
+     Pod
+      │
+      ▼
+ Container
+      │
+      ▼
+Application
+```
+
+---
+
+# 3. Pod vs Container
+
+| Pod                   | Container                    |
+| --------------------- | ---------------------------- |
+| Managed by Kubernetes | Managed by Container Runtime |
+| Provides IP & Network | Runs Application             |
+| Wrapper               | Actual Runtime               |
+
+Example
+
+```
+Pod
+│
+└── Nginx Container
+        │
+        └── Serves Web Pages
+```
+
+---
+
+# 4. One Pod = One Application
+
+In most real-world cases,
+
+One Pod contains one application/component.
+
+Example
+
+```
+React       → Pod 1
+
+Spring Boot → Pod 2
+
+MySQL       → Pod 3
+
+Redis       → Pod 4
+```
+
+Why?
+
+* Easy management
+* Independent scaling
+* Independent restart
+* Better fault isolation
+
+---
+
+# 5. Single Container Pod
+
+Most common type.
+
+```
+Pod
+
+↓
+
+Nginx Container
+```
+
+One Pod
+
+↓
+
+One Container
+
+↓
+
+One Application
+
+---
+
+# 6. Multi Container Pod
+
+Sometimes one application needs helper containers.
+
+Example
+
+```
+Pod
+
+├── Main Application
+
+└── Log Collector
+```
+
+Containers inside the same Pod
+
+* Share Network
+* Share Storage
+* Share IP Address
+
+We will study Multi-container Pods in detail later.
+
+---
+
+# 7. Pod Lifecycle
+
+```
+Pending
+
+↓
+
+Running
+
+↓
+
+Succeeded OR Failed
+
+↓
+
+Terminating
+```
+
+---
+
+## Pending
+
+Pod is being prepared.
+
+Kubernetes is
+
+* Selecting Worker Node
+* Downloading Image
+* Creating Network
+* Preparing Storage
+
+Example
+
+```
+kubectl apply
+
+↓
+
+Pending
+```
+
+---
+
+## Running
+
+Container starts successfully.
+
+Application is ready.
+
+Example
+
+```
+STATUS
+
+Running
+```
+
+---
+
+## Succeeded
+
+Used for one-time jobs.
+
+Examples
+
+* Backup
+* Report Generation
+* Data Migration
+
+Work completed successfully.
+
+```
+Backup
+
+↓
+
+Completed
+
+↓
+
+Succeeded
+```
+
+---
+
+## Failed
+
+Pod finished with an error.
+
+Example
+
+```
+Python Script
+
+↓
+
+Exception
+
+↓
+
+Failed
+```
+
+---
+
+## Terminating
+
+When Pod is deleted.
+
+```
+Running
+
+↓
+
+kubectl delete pod
+
+↓
+
+Terminating
+
+↓
+
+Deleted
+```
+
+---
+
+# 8. Container Crash vs Worker Node Crash
+
+## Case 1
+
+Container crashes
+
+```
+Pod
+
+↓
+
+Container ❌
+```
+
+kubelet notices.
+
+Container Runtime recreates the container.
+
+Pod remains the same.
+
+---
+
+## Case 2
+
+Worker Node crashes
+
+```
+Worker Node ❌
+
+↓
+
+Pod ❌
+
+↓
+
+Container ❌
+```
+
+Control Plane schedules a **new Pod** on another healthy Worker Node.
+
+---
+
+# 9. Pod IP Address
+
+Every Pod gets its own IP.
+
+Example
+
+```
+React Pod
+
+192.168.1.10
+
+Backend Pod
+
+192.168.1.11
+
+MySQL Pod
+
+192.168.1.12
+```
+
+Why?
+
+* Unique network identity
+* Easy communication between Pods
+* Isolation
+
+---
+
+# 10. kubectl get pods
+
+Command
+
+```bash
+kubectl get pods
+```
+
+Example
+
+```
+NAME        READY   STATUS    RESTARTS   AGE
+
+nginx-pod   1/1     Running   0          27m
+```
+
+Meaning
+
+| Column   | Description                           |
+| -------- | ------------------------------------- |
+| NAME     | Pod Name                              |
+| READY    | Running Containers / Total Containers |
+| STATUS   | Current Pod State                     |
+| RESTARTS | Container Restart Count               |
+| AGE      | Pod Age                               |
+
+---
+
+# 11. kubectl describe pod
+
+Command
+
+```bash
+kubectl describe pod nginx-pod
+```
+
+Important Information
+
+* Pod Name
+* Namespace
+* Worker Node
+* Pod IP
+* Container Details
+* Events
+
+---
+
+# 12. Events (Pod Creation Flow)
+
+```
+Scheduled
+
+↓
+
+Pulling
+
+↓
+
+Pulled
+
+↓
+
+Created
+
+↓
+
+Started
+```
+
+Meaning
+
+### Scheduled
+
+Scheduler selected Worker Node.
+
+---
+
+### Pulling
+
+Container Runtime downloads image.
+
+---
+
+### Pulled
+
+Image downloaded successfully.
+
+---
+
+### Created
+
+Container Runtime creates the container.
+
+---
+
+### Started
+
+Container starts.
+
+Pod becomes Running.
+
+---
+
+# 13. Complete Flow
+
+```
+You
+
+↓
+
+kubectl apply
+
+↓
+
+API Server
+
+↓
+
+Scheduler
+
+↓
+
+Worker Node Selected
+
+↓
+
+kubelet
+
+↓
+
+Container Runtime
+
+↓
+
+Pull Image
+
+↓
+
+Create Container
+
+↓
+
+Start Container
+
+↓
+
+Pod Running
+```
+
+---
+
+# 14. Important Interview Questions
+
+### What is the smallest deployable unit in Kubernetes?
+
+Pod
+
+---
+
+### Does Kubernetes manage Containers?
+
+No.
+
+Kubernetes manages Pods.
+
+---
+
+### Who monitors Pods?
+
+kubelet
+
+---
+
+### Who selects Worker Node?
+
+Scheduler
+
+---
+
+### Who creates Container?
+
+Container Runtime
+
+---
+
+### Who serves the application?
+
+Container
+
+---
+
+### Who provides IP Address?
+
+Pod
+
+---
+
+# Hands-on Commands
+
+Create Pod
+
+```bash
+kubectl apply -f my-nginx.yaml
+```
+
+View Pods
+
+```bash
+kubectl get pods
+```
+
+Describe Pod
+
+```bash
+kubectl describe pod my-nginx
+```
+
+Delete Pod
+
+```bash
+kubectl delete pod my-nginx
+```
+
+---
+
+# Day 4 Summary
+
+✔ What is a Pod
+
+✔ Pod vs Container
+
+✔ Why Pods are used
+
+✔ Single-container Pod
+
+✔ Multi-container Pod (Introduction)
+
+✔ Pod Lifecycle
+
+✔ Pod IP
+
+✔ Container Crash vs Worker Node Crash
+
+✔ kubectl get pods
+
+✔ kubectl describe pod
+
+✔ Pod Creation Flow
+
+✔ Hands-on Commands
+
