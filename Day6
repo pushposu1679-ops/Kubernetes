@@ -1,0 +1,609 @@
+# Kubernetes – Day 6 Notes
+
+## Topic: Scaling, ReplicaSets & Self-Healing
+
+---
+
+# What is Scaling?
+
+Scaling means **changing the number of running Pods** based on application requirements.
+
+Example:
+
+Traffic increases
+
+```text
+3 Pods
+```
+
+↓
+
+```text
+5 Pods
+```
+
+Traffic decreases
+
+```text
+5 Pods
+```
+
+↓
+
+```text
+2 Pods
+```
+
+---
+
+# Types of Scaling
+
+## 1. Scale Up (Horizontal Scaling)
+
+Increase the number of Pods.
+
+Example:
+
+```text
+3 Pods
+
+↓
+
+5 Pods
+```
+
+Used when:
+
+* More users
+* High traffic
+* High CPU/Memory usage
+
+---
+
+## 2. Scale Down
+
+Reduce the number of Pods.
+
+Example:
+
+```text
+5 Pods
+
+↓
+
+2 Pods
+```
+
+Used when:
+
+* Less traffic
+* Save resources
+* Reduce infrastructure cost
+
+---
+
+# Manual Scaling
+
+Pods can be scaled manually using Deployment.
+
+Command:
+
+```bash
+kubectl scale deployment nginx-deployment --replicas=5
+```
+
+Example:
+
+Before
+
+```text
+replicas = 3
+```
+
+After
+
+```text
+replicas = 5
+```
+
+---
+
+# Internal Flow During Scaling
+
+You run:
+
+```bash
+kubectl scale deployment nginx-deployment --replicas=5
+```
+
+Flow:
+
+```text
+kubectl
+     │
+     ▼
+API Server
+     │
+     ▼
+Deployment updated
+
+Desired = 5
+     │
+     ▼
+ReplicaSet compares
+
+Desired = 5
+Actual = 3
+     │
+     ▼
+Creates 2 new Pods
+     │
+     ▼
+Scheduler assigns Worker Node
+     │
+     ▼
+kubelet starts Pods
+     │
+     ▼
+Container Runtime runs Containers
+```
+
+---
+
+# Scale Down Flow
+
+Example:
+
+Current
+
+```text
+Desired = 5
+
+Actual = 5
+```
+
+Change
+
+```bash
+kubectl scale deployment nginx-deployment --replicas=2
+```
+
+ReplicaSet compares:
+
+```text
+Desired = 2
+
+Actual = 5
+```
+
+ReplicaSet deletes the extra Pods.
+
+---
+
+# ReplicaSet Responsibilities
+
+ReplicaSet maintains the desired number of Pods.
+
+It continuously compares:
+
+```text
+Desired State
+
+vs
+
+Actual State
+```
+
+Cases:
+
+### Desired > Actual
+
+ReplicaSet creates new Pods.
+
+Example:
+
+```text
+Desired = 5
+
+Actual = 3
+```
+
+↓
+
+Creates 2 Pods.
+
+---
+
+### Desired < Actual
+
+ReplicaSet deletes extra Pods.
+
+Example:
+
+```text
+Desired = 2
+
+Actual = 5
+```
+
+↓
+
+Deletes 3 Pods.
+
+---
+
+### Desired = Actual
+
+ReplicaSet does nothing.
+
+---
+
+# Self-Healing
+
+Self-Healing means Kubernetes automatically restores the desired number of Pods.
+
+Example:
+
+Deployment
+
+```yaml
+replicas: 5
+```
+
+Current Pods
+
+```text
+Pod A
+
+Pod B
+
+Pod C
+
+Pod D
+
+Pod E
+```
+
+Delete Pod B
+
+```bash
+kubectl delete pod <pod-name>
+```
+
+ReplicaSet notices
+
+```text
+Desired = 5
+
+Actual = 4
+```
+
+Creates one new Pod.
+
+Final:
+
+```text
+5 Running Pods
+```
+
+---
+
+# Container Crash vs Pod Deletion
+
+## Case 1 – Container crashes
+
+```text
+Pod ✅
+
+Container ❌
+```
+
+kubelet asks Container Runtime to restart the container.
+
+Pod remains the same.
+
+Pod Name = Same
+
+Pod IP = Same
+
+---
+
+## Case 2 – Pod deleted
+
+```text
+Pod ❌
+```
+
+ReplicaSet creates a brand-new Pod.
+
+New Pod Name
+
+Usually new Pod IP
+
+New Pod lifecycle
+
+---
+
+# Worker Node Failure
+
+Suppose Worker Node crashes.
+
+Flow:
+
+```text
+Worker Node crashes
+
+↓
+
+Pod lost
+
+↓
+
+ReplicaSet creates new Pod
+
+↓
+
+Scheduler selects another Worker Node
+
+↓
+
+kubelet starts Pod
+
+↓
+
+Container Runtime runs container
+```
+
+---
+
+# Pod Naming Convention
+
+Example:
+
+```text
+nginx-deployment-56c45fd5ff-2wsz4
+```
+
+Split into three parts.
+
+### Part 1
+
+```text
+nginx-deployment
+```
+
+Deployment Name
+
+---
+
+### Part 2
+
+```text
+56c45fd5ff
+```
+
+ReplicaSet Hash
+
+If Pod Template changes (for example image update),
+
+ReplicaSet Hash changes.
+
+---
+
+### Part 3
+
+```text
+2wsz4
+```
+
+Random Pod ID
+
+Every Pod gets a unique suffix.
+
+---
+
+# Example
+
+Old Pods
+
+```text
+nginx-deployment-56c45fd5ff-abcde
+```
+
+Image updated
+
+```yaml
+image: httpd
+```
+
+New ReplicaSet created.
+
+New Pods
+
+```text
+nginx-deployment-8f7d9bc6f4-xyz12
+```
+
+Changes:
+
+ReplicaSet Hash ✅
+
+Random Pod ID ✅
+
+Deployment Name ❌
+
+---
+
+# kubectl Commands
+
+Scale Up
+
+```bash
+kubectl scale deployment nginx-deployment --replicas=5
+```
+
+Scale Down
+
+```bash
+kubectl scale deployment nginx-deployment --replicas=2
+```
+
+View Deployments
+
+```bash
+kubectl get deployments
+```
+
+View Pods
+
+```bash
+kubectl get pods
+```
+
+Delete Pod
+
+```bash
+kubectl delete pod <pod-name>
+```
+
+---
+
+# kubectl get deployments Output
+
+Example:
+
+```text
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment   5/5     5            5           90s
+```
+
+READY
+
+Ready Pods / Desired Pods
+
+Example
+
+```text
+5/5
+```
+
+---
+
+UP-TO-DATE
+
+Pods running the latest Deployment configuration.
+
+---
+
+AVAILABLE
+
+Pods available to serve traffic.
+
+---
+
+AGE
+
+Time since Deployment was created.
+
+---
+
+# Important Interview Questions
+
+### What is Scaling?
+
+Scaling means increasing or decreasing the number of Pods based on application demand.
+
+---
+
+### Who performs scaling?
+
+Deployment updates the desired state.
+
+ReplicaSet performs the actual scaling by creating or deleting Pods.
+
+---
+
+### Who recreates deleted Pods?
+
+ReplicaSet.
+
+---
+
+### Who restarts crashed Containers?
+
+kubelet.
+
+---
+
+### Who selects Worker Nodes?
+
+Scheduler.
+
+---
+
+### Difference between Scale Up and Scale Down
+
+Scale Up
+
+```text
+Desired > Actual
+
+↓
+
+Create Pods
+```
+
+Scale Down
+
+```text
+Desired < Actual
+
+↓
+
+Delete Pods
+```
+
+---
+
+# Architecture Summary
+
+```text
+kubectl
+     │
+API Server
+     │
+Deployment
+     │
+ReplicaSet
+     │
+Pods
+     │
+Scheduler
+     │
+Worker Node
+     │
+kubelet
+     │
+Container Runtime
+     │
+Container
+```
+
+---
+
+# Key Takeaways
+
+* Scaling changes the number of running Pods.
+* Deployment defines the desired number of Pods.
+* ReplicaSet maintains the desired number of Pods.
+* Scale Up creates additional Pods.
+* Scale Down removes extra Pods.
+* Self-Healing automatically recreates deleted Pods.
+* kubelet restarts crashed Containers, not Pods.
+* Pod names consist of:
+
+  * Deployment Name
+  * ReplicaSet Hash
+  * Random Pod ID
+* Changing the Pod template creates a new ReplicaSet with a new hash.
+
