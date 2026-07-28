@@ -1,0 +1,571 @@
+# Kubernetes – Day 5 Notes
+
+## Topic: Deployments & ReplicaSets
+
+---
+
+# Why do we need Deployments?
+
+A Pod can run an application, but Pods are **temporary**.
+
+If a Pod is deleted or the node hosting it fails, the application may become unavailable.
+
+In production, we need Kubernetes to automatically maintain the required number of Pods.
+
+Deployment solves this problem.
+
+---
+
+# What is a Deployment?
+
+A **Deployment** is a Kubernetes object that manages Pods.
+
+It does **not** create Pods directly.
+
+It creates a **ReplicaSet**, and the ReplicaSet creates and manages the Pods.
+
+Architecture:
+
+```text
+Deployment
+      │
+      ▼
+ReplicaSet
+      │
+      ▼
+Pods
+```
+
+---
+
+# Responsibilities of a Deployment
+
+* Maintains the desired number of Pods.
+* Supports scaling Pods up and down.
+* Supports rolling updates.
+* Supports rollback.
+* Provides self-healing through ReplicaSet.
+
+---
+
+# What is ReplicaSet?
+
+ReplicaSet ensures that the required number of Pods are always running.
+
+Example:
+
+Desired replicas = 3
+
+Current Pods:
+
+```
+Pod 1 ✅
+Pod 2 ✅
+Pod 3 ❌ (deleted)
+```
+
+ReplicaSet notices:
+
+```
+Desired = 3
+Actual = 2
+```
+
+ReplicaSet immediately creates one new Pod.
+
+---
+
+# Desired State
+
+Deployment YAML:
+
+```yaml
+replicas: 3
+```
+
+Desired State means:
+
+> "Always keep 3 Pods running."
+
+ReplicaSet continuously compares:
+
+```
+Desired State
+vs
+Actual State
+```
+
+If they differ, ReplicaSet takes action.
+
+---
+
+# Deployment YAML
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: nginx-deployment
+
+spec:
+  replicas: 3
+
+  selector:
+    matchLabels:
+      app: nginx
+
+  template:
+    metadata:
+      labels:
+        app: nginx
+
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+```
+
+---
+
+# Understanding the YAML
+
+## apiVersion
+
+```yaml
+apiVersion: apps/v1
+```
+
+Deployment belongs to the **apps** API group.
+
+---
+
+## kind
+
+```yaml
+kind: Deployment
+```
+
+Creates a Deployment object.
+
+---
+
+## metadata
+
+```yaml
+metadata:
+  name: nginx-deployment
+```
+
+Name of the Deployment.
+
+---
+
+## replicas
+
+```yaml
+replicas: 3
+```
+
+Desired number of Pods.
+
+---
+
+## selector
+
+```yaml
+selector:
+  matchLabels:
+    app: nginx
+```
+
+Deployment manages only Pods having:
+
+```
+app = nginx
+```
+
+Think of selector as a **search filter**.
+
+---
+
+## template
+
+```yaml
+template:
+```
+
+Template is used whenever Kubernetes creates a new Pod.
+
+---
+
+## labels
+
+```yaml
+labels:
+  app: nginx
+```
+
+Every new Pod created by this Deployment gets:
+
+```
+app = nginx
+```
+
+Selector and template labels **must match**.
+
+Example:
+
+Correct:
+
+```yaml
+selector:
+  matchLabels:
+    app: nginx
+
+template:
+  metadata:
+    labels:
+      app: nginx
+```
+
+Wrong:
+
+```yaml
+selector:
+  matchLabels:
+    app: nginx
+
+template:
+  metadata:
+    labels:
+      app: apache
+```
+
+Kubernetes rejects this because Deployment cannot find its own Pods.
+
+---
+
+# Owner Relationship
+
+```
+Deployment
+      │
+      ▼
+ReplicaSet
+      │
+      ▼
+Pods
+```
+
+Deployment owns ReplicaSet.
+
+ReplicaSet owns Pods.
+
+Deleting Deployment removes:
+
+* Deployment
+* ReplicaSet
+* All associated Pods
+
+---
+
+# Difference between Manual Pod and Deployment Pod
+
+Manual Pod:
+
+```
+You
+ │
+ ▼
+Pod
+```
+
+Deleting Deployment does NOT affect it.
+
+Deployment Pod:
+
+```
+Deployment
+      │
+ReplicaSet
+      │
+Pod
+```
+
+Deleting Deployment removes all Deployment-created Pods.
+
+---
+
+# Component Responsibilities
+
+## Deployment
+
+* Defines desired state.
+* Manages ReplicaSets.
+* Supports scaling and updates.
+
+---
+
+## ReplicaSet
+
+* Maintains required number of Pods.
+* Creates new Pods when Pods are deleted.
+
+---
+
+## kubelet
+
+Runs on every Worker Node.
+
+Responsibilities:
+
+* Monitors Pods.
+* Restarts crashed containers.
+* Talks to Container Runtime.
+
+---
+
+## Scheduler
+
+Assigns newly created Pods to the best Worker Node.
+
+---
+
+## API Server
+
+* Entry point to Kubernetes.
+* Receives kubectl requests.
+* Stores cluster state in etcd.
+
+---
+
+# Difference between Pod Deletion and Container Crash
+
+## Container crashes
+
+```
+Pod ✅
+
+Container ❌
+```
+
+kubelet asks Container Runtime to restart the container.
+
+Pod remains the same.
+
+---
+
+## Pod deleted
+
+```
+Pod ❌
+```
+
+ReplicaSet creates a brand new Pod.
+
+---
+
+# Worker Node Failure
+
+Suppose Worker Node crashes.
+
+Flow:
+
+```
+Worker Node crashes
+
+↓
+
+Pod lost
+
+↓
+
+ReplicaSet creates new Pod
+
+↓
+
+Scheduler selects another Worker Node
+
+↓
+
+kubelet starts Pod
+
+↓
+
+Container Runtime runs container
+```
+
+---
+
+# kubectl Commands Learned
+
+Create Deployment
+
+```bash
+kubectl apply -f nginx-deployment.yaml
+```
+
+View Deployment
+
+```bash
+kubectl get deployments
+```
+
+Short form
+
+```bash
+kubectl get deploy
+```
+
+View Pods
+
+```bash
+kubectl get pods
+```
+
+Delete Deployment
+
+```bash
+kubectl delete deployment nginx-deployment
+```
+
+Delete Pod
+
+```bash
+kubectl delete pod <pod-name>
+```
+
+View ReplicaSets
+
+```bash
+kubectl get rs
+```
+
+or
+
+```bash
+kubectl get replicasets
+```
+
+---
+
+# kubectl get deployments Output
+
+Example:
+
+```text
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment   3/3     3            3           11s
+```
+
+READY
+
+Pods ready / Desired Pods
+
+Example:
+
+```
+3/3
+```
+
+UP-TO-DATE
+
+Pods running the latest Deployment specification.
+
+AVAILABLE
+
+Pods available to serve traffic.
+
+AGE
+
+Time since Deployment was created.
+
+---
+
+# Interview Questions
+
+### Why use Deployment instead of Pods?
+
+Deployment provides declarative management of Pods.
+
+It maintains the desired number of Pods through ReplicaSet, supports self-healing, scaling, rolling updates, and rollback, making it suitable for production environments.
+
+---
+
+### Who creates Pods?
+
+ReplicaSet.
+
+---
+
+### Who creates ReplicaSet?
+
+Deployment (through the Controller Manager).
+
+---
+
+### Who schedules Pods?
+
+Scheduler.
+
+---
+
+### Who starts containers?
+
+kubelet asks the Container Runtime to start containers.
+
+---
+
+### Who restarts crashed containers?
+
+kubelet.
+
+---
+
+### Who recreates deleted Pods?
+
+ReplicaSet.
+
+---
+
+# Architecture Summary
+
+```
+kubectl
+    │
+API Server
+    │
+etcd
+    │
+Controller Manager
+    │
+Deployment
+    │
+ReplicaSet
+    │
+Pods
+    │
+Scheduler
+    │
+Worker Node
+    │
+kubelet
+    │
+Container Runtime
+    │
+Container
+```
+
+---
+
+# Key Takeaways
+
+* Pod runs one or more containers.
+* Deployment manages ReplicaSets.
+* ReplicaSet maintains desired number of Pods.
+* kubelet manages containers inside Pods.
+* Scheduler assigns Pods to Worker Nodes.
+* API Server stores cluster state.
+* Deployments are used in production because they provide self-healing, scaling, rolling updates, and rollback.
+
