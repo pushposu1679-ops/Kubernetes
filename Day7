@@ -1,0 +1,316 @@
+# Day 7 – Kubernetes Services
+
+## 1. Why Pods cannot be accessed directly
+
+* Every Pod gets its own IP address.
+* Pod IPs are **temporary**.
+* If a Pod is deleted or recreated, it gets a **new IP address**.
+* Applications or users should **not** communicate directly with Pod IPs.
+* Kubernetes uses **Services** to provide a stable way to access Pods.
+
+---
+
+## 2. What is a Service?
+
+A **Service** is a Kubernetes object that provides a **stable IP address and DNS name** for a group of Pods.
+
+### Responsibilities of a Service
+
+* Provides a stable IP (ClusterIP).
+* Load balances traffic across healthy Pods.
+* Automatically discovers Pods using **labels and selectors**.
+* Continues working even if Pods are recreated.
+
+---
+
+## 3. Labels and Selectors
+
+### Labels
+
+Labels are key-value pairs attached to Kubernetes objects.
+
+Example:
+
+```yaml
+labels:
+  app: nginx
+```
+
+### Selector
+
+A selector is used by a Service (or Deployment/ReplicaSet) to find matching Pods.
+
+Example:
+
+```yaml
+selector:
+  app: nginx
+```
+
+### Important
+
+The Service selector must match the Pod labels.
+
+Example:
+
+Pod:
+
+```yaml
+labels:
+  app: nginx
+```
+
+Service:
+
+```yaml
+selector:
+  app: nginx
+```
+
+The Service's own metadata labels are optional and **do not have to match** the selector.
+
+---
+
+## 4. ClusterIP
+
+ClusterIP is the **default Service type**.
+
+Characteristics:
+
+* Internal communication only.
+* Accessible only from inside the Kubernetes cluster.
+* Gets a stable internal IP.
+* Cannot be accessed directly from outside the cluster.
+
+Example:
+
+```yaml
+type: ClusterIP
+```
+
+---
+
+## 5. Service YAML
+
+```yaml
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: nginx-service
+
+spec:
+  selector:
+    app: nginx
+
+  ports:
+    - port: 80
+      targetPort: 80
+
+  type: ClusterIP
+```
+
+---
+
+## 6. Port vs TargetPort
+
+### port
+
+The port exposed by the Service.
+
+Applications inside the cluster connect to:
+
+```
+nginx-service:80
+```
+
+### targetPort
+
+The port on which the application inside the Pod is listening.
+
+Example:
+
+```yaml
+ports:
+  - port: 80
+    targetPort: 8080
+```
+
+Flow:
+
+```
+Client
+   ↓
+Service :80
+   ↓
+Pod :8080
+```
+
+---
+
+## 7. Service Discovery (DNS)
+
+Every Service automatically receives a DNS name.
+
+Example:
+
+Service Name:
+
+```
+nginx-service
+```
+
+Applications inside the cluster can access it using:
+
+```
+http://nginx-service
+```
+
+instead of using the ClusterIP.
+
+CoreDNS automatically resolves:
+
+```
+nginx-service
+        ↓
+ClusterIP
+        ↓
+Pods
+```
+
+Full DNS format:
+
+```
+nginx-service.default.svc.cluster.local
+```
+
+Usually, within the same namespace, only the Service name is required:
+
+```
+nginx-service
+```
+
+---
+
+## 8. Service Types
+
+### ClusterIP
+
+* Internal communication only.
+* Default Service type.
+
+### NodePort
+
+* Exposes the application through a port on every Kubernetes node.
+* Accessible from outside the cluster using:
+
+```
+NodeIP:NodePort
+```
+
+### LoadBalancer
+
+* Used in cloud environments.
+* Creates an external cloud load balancer.
+* Used for production applications exposed to the internet.
+
+---
+
+## 9. Traffic Flow
+
+```
+Client Pod
+      ↓
+Service DNS
+(nginx-service)
+      ↓
+CoreDNS
+      ↓
+ClusterIP
+      ↓
+Service
+      ↓
+Healthy Pod
+```
+
+---
+
+## 10. Hands-on Commands
+
+### Create Deployment
+
+```bash
+kubectl apply -f nginx-deployment.yaml
+```
+
+### Create Service
+
+```bash
+kubectl apply -f nginx-service.yaml
+```
+
+### View Services
+
+```bash
+kubectl get svc
+```
+
+### Describe Service
+
+```bash
+kubectl describe svc nginx-service
+```
+
+### Create Temporary BusyBox Pod
+
+```bash
+kubectl run test-pod --image=busybox --restart=Never -it --rm -- sh
+```
+
+### Access the Service
+
+```bash
+wget -qO- http://nginx-service
+```
+
+---
+
+## 11. Key Interview Questions
+
+### Why should we not use Pod IPs?
+
+Pod IPs are temporary and change when Pods are recreated.
+
+### What problem does a Service solve?
+
+It provides a stable endpoint, load balances traffic, and automatically routes requests to healthy Pods.
+
+### Difference between Labels and Selectors
+
+* Labels identify Kubernetes objects.
+* Selectors find objects with matching labels.
+
+### Difference between port and targetPort
+
+* **port** → Service port.
+* **targetPort** → Container/Pod application port.
+
+### What is Service Discovery?
+
+Service Discovery allows applications to communicate using Service DNS names instead of IP addresses.
+
+### What is CoreDNS?
+
+CoreDNS is the DNS server inside Kubernetes that resolves Service names to ClusterIP addresses.
+
+---
+
+## Day 7 Summary
+
+* Pods should not be accessed directly.
+* Services provide stable networking.
+* ClusterIP is used for internal communication.
+* Services discover Pods using labels and selectors.
+* Service Discovery uses CoreDNS.
+* Applications should communicate using the Service name rather than Pod IPs or ClusterIP.
+
