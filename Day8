@@ -1,0 +1,398 @@
+# Day 8 – Labels & Selectors
+
+## 1. What are Labels?
+
+Labels are **key-value pairs** attached to Kubernetes objects.
+
+They are used to identify, organize, and group resources.
+
+Example:
+
+```yaml
+labels:
+  app: nginx
+```
+
+A Kubernetes object can have **multiple labels**.
+
+Example:
+
+```yaml
+labels:
+  app: frontend
+  environment: production
+  version: v1
+```
+
+---
+
+# 2. Why do we use Labels?
+
+Labels help Kubernetes organize resources.
+
+They are used to:
+
+* Identify resources
+* Group similar resources
+* Filter resources
+* Connect Services to Pods
+* Connect Deployments to ReplicaSets and Pods
+
+Real-world examples:
+
+* Frontend Pods
+* Backend Pods
+* Database Pods
+* Production Pods
+* Development Pods
+* Versioned applications
+
+---
+
+# 3. Labels are Key-Value Pairs
+
+Correct syntax:
+
+```yaml
+labels:
+  app: frontend
+```
+
+❌ Wrong:
+
+```yaml
+labels:
+  - app: frontend
+```
+
+Labels are **not a list**.
+
+They are a **dictionary (map)**.
+
+---
+
+# 4. Multiple Labels
+
+One Pod can have multiple labels.
+
+Example:
+
+```yaml
+labels:
+  app: frontend
+  environment: production
+  version: v1
+```
+
+This Pod has three labels:
+
+* app = frontend
+* environment = production
+* version = v1
+
+---
+
+# 5. Selectors
+
+A selector is used to find Kubernetes objects with matching labels.
+
+Think of it as a filter.
+
+Example:
+
+```yaml
+selector:
+  app: frontend
+```
+
+Meaning:
+
+> Select all resources whose label is:
+
+```yaml
+app: frontend
+```
+
+---
+
+# 6. MatchLabels
+
+Deployments and Services commonly use:
+
+```yaml
+selector:
+  matchLabels:
+    app: nginx
+```
+
+Meaning:
+
+Find Pods having:
+
+```yaml
+labels:
+  app: nginx
+```
+
+---
+
+# 7. Extra Labels
+
+Extra labels do **not** affect matching.
+
+Example:
+
+Pod:
+
+```yaml
+labels:
+  app: nginx
+  environment: production
+  version: v2
+```
+
+Deployment:
+
+```yaml
+selector:
+  matchLabels:
+    app: nginx
+```
+
+Result:
+
+✅ Pod is selected.
+
+Reason:
+
+Kubernetes only checks the labels specified inside **matchLabels**.
+
+Extra labels are ignored.
+
+---
+
+# 8. Multiple MatchLabels
+
+Example:
+
+```yaml
+matchLabels:
+  app: nginx
+  environment: production
+```
+
+Kubernetes checks:
+
+```
+app = nginx
+
+AND
+
+environment = production
+```
+
+All conditions must match.
+
+---
+
+# 9. Filtering Resources
+
+Use the **-l** option.
+
+Show frontend Pods:
+
+```bash
+kubectl get pods -l app=frontend
+```
+
+Show backend Pods:
+
+```bash
+kubectl get pods -l app=backend
+```
+
+Show production Pods:
+
+```bash
+kubectl get pods -l environment=production
+```
+
+Show production backend Pods:
+
+```bash
+kubectl get pods -l app=backend,environment=production
+```
+
+The comma represents **AND**.
+
+---
+
+# 10. Show Labels
+
+Display all Pods along with their labels:
+
+```bash
+kubectl get pods --show-labels
+```
+
+Example:
+
+```
+NAME        READY   STATUS    LABELS
+
+frontend    1/1     Running   app=frontend,environment=production
+
+backend     1/1     Running   app=backend,environment=production
+```
+
+---
+
+# 11. Hands-on Practiced
+
+Created Pods with labels:
+
+Frontend:
+
+```yaml
+labels:
+  app: frontend
+```
+
+Backend:
+
+```yaml
+labels:
+  app: backend
+```
+
+Practiced:
+
+```bash
+kubectl get pods --show-labels
+
+kubectl get pods -l app=frontend
+
+kubectl get pods -l app=backend
+```
+
+Also learned filtering using multiple labels.
+
+---
+
+# 12. Labels vs Selectors
+
+| Labels              | Selectors                 |
+| ------------------- | ------------------------- |
+| Attached to objects | Used to find objects      |
+| Key-value pairs     | Filter based on labels    |
+| Identify resources  | Select matching resources |
+
+---
+
+# 13. Labels vs MatchLabels
+
+**Labels**
+
+Applied to objects.
+
+Example:
+
+```yaml
+labels:
+  app: nginx
+```
+
+**MatchLabels**
+
+Used inside Deployments and Services.
+
+Example:
+
+```yaml
+selector:
+  matchLabels:
+    app: nginx
+```
+
+---
+
+# 14. Important Interview Questions
+
+### What are Labels?
+
+Labels are key-value pairs attached to Kubernetes resources to identify and organize them.
+
+---
+
+### What is a Selector?
+
+A selector filters Kubernetes resources based on their labels.
+
+---
+
+### What is MatchLabels?
+
+`matchLabels` is a selector that matches Pods having the specified key-value labels.
+
+---
+
+### Can a Pod have multiple labels?
+
+Yes.
+
+Example:
+
+```yaml
+labels:
+  app: frontend
+  environment: production
+  version: v1
+```
+
+---
+
+### If a Pod has extra labels, will it still match?
+
+Yes.
+
+Kubernetes only checks the labels specified inside `matchLabels`.
+
+Extra labels are ignored.
+
+---
+
+### How do you display labels?
+
+```bash
+kubectl get pods --show-labels
+```
+
+---
+
+### How do you filter Pods using labels?
+
+```bash
+kubectl get pods -l app=frontend
+```
+
+---
+
+### How do you filter using multiple labels?
+
+```bash
+kubectl get pods -l app=backend,environment=production
+```
+
+---
+
+# Day 8 Summary
+
+* Labels identify Kubernetes resources.
+* A resource can have multiple labels.
+* Selectors find resources using labels.
+* `matchLabels` matches Pods based on specified labels.
+* Extra labels do not affect matching.
+* Labels are used extensively by Deployments and Services.
+* `kubectl get pods -l` filters resources using labels.
+* `kubectl get pods --show-labels` displays labels attached to resources.
+
