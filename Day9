@@ -1,0 +1,443 @@
+# Day 9 – Namespaces
+
+## 1. What is a Namespace?
+
+A **Namespace** is a logical way to organize and separate Kubernetes resources within the same cluster.
+
+Example:
+
+```text
+Kubernetes Cluster
+│
+├── development
+│   ├── Pods
+│   ├── Services
+│   └── Deployments
+│
+├── testing
+│   ├── Pods
+│   └── Services
+│
+└── production
+    ├── Pods
+    └── Services
+```
+
+Namespaces help organize resources belonging to different teams, environments, or projects.
+
+---
+
+## 2. Namespace ≠ Cluster
+
+A namespace is **not a separate Kubernetes cluster**.
+
+Multiple namespaces can exist inside the same cluster.
+
+```text
+One Kubernetes Cluster
+│
+├── dev namespace
+├── test namespace
+└── prod namespace
+```
+
+They provide logical separation and organization of resources.
+
+---
+
+# 3. Default Namespace
+
+Kubernetes has a namespace called:
+
+```text
+default
+```
+
+When no namespace is specified, `kubectl` uses the namespace configured in the current context.
+
+In a normal setup, this is usually `default`.
+
+For example:
+
+```bash
+kubectl get pods
+```
+
+is equivalent to:
+
+```bash
+kubectl get pods -n default
+```
+
+when the current context is using `default`.
+
+---
+
+# 4. View Namespaces
+
+```bash
+kubectl get namespaces
+```
+
+or:
+
+```bash
+kubectl get ns
+```
+
+Example:
+
+```text
+NAME                 STATUS
+default              Active
+dev                  Active
+kube-system          Active
+kube-public          Active
+```
+
+---
+
+# 5. Create a Custom Namespace
+
+Create a namespace called `dev`:
+
+```bash
+kubectl create namespace dev
+```
+
+Verify:
+
+```bash
+kubectl get namespaces
+```
+
+---
+
+# 6. Work With a Specific Namespace
+
+The `-n` option specifies the namespace.
+
+Example:
+
+```bash
+kubectl get pods -n dev
+```
+
+This means:
+
+> Show Pods from the `dev` namespace.
+
+Another example:
+
+```bash
+kubectl get deployments -n dev
+```
+
+---
+
+# 7. Creating a Pod in a Namespace
+
+Example:
+
+```bash
+kubectl run nginx --image=nginx -n dev
+```
+
+The `-n dev` tells Kubernetes to create the Pod inside the `dev` namespace.
+
+Verify:
+
+```bash
+kubectl get pods -n dev
+```
+
+If you run:
+
+```bash
+kubectl get pods
+```
+
+while your current namespace is `default`, the Pod will not appear because it is in `dev`.
+
+---
+
+# 8. Namespace in YAML
+
+A resource can specify its namespace in `metadata`.
+
+Example:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: nginx-namespace
+  namespace: dev
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: nginx
+
+  template:
+    metadata:
+      labels:
+        app: nginx
+
+    spec:
+      containers:
+        - name: nginx
+          image: nginx
+```
+
+Important:
+
+```yaml
+metadata:
+  namespace: dev
+```
+
+means:
+
+> Create this Deployment in the `dev` namespace.
+
+The Deployment's ReplicaSet and Pods are also created in that namespace.
+
+---
+
+# 9. Hands-on Completed
+
+### Step 1 – Checked existing namespaces
+
+```bash
+kubectl get namespaces
+```
+
+### Step 2 – Created custom namespace
+
+```bash
+kubectl create namespace dev
+```
+
+### Step 3 – Created nginx Pod inside `dev`
+
+```bash
+kubectl run nginx --image=nginx -n dev
+```
+
+### Step 4 – Verified default namespace
+
+```bash
+kubectl get pods
+```
+
+Output:
+
+```text
+No resources found in default namespace.
+```
+
+### Step 5 – Checked `dev`
+
+```bash
+kubectl get pods -n dev
+```
+
+The nginx Pod appeared.
+
+### Step 6 – Created Deployment inside `dev`
+
+The Deployment YAML contained:
+
+```yaml
+metadata:
+  name: nginx-namespace
+  namespace: dev
+```
+
+with:
+
+```yaml
+replicas: 2
+```
+
+After applying:
+
+```bash
+kubectl apply -f nginx-namespace.yaml
+```
+
+two Deployment Pods were created in `dev`.
+
+---
+
+# 10. Current Namespace
+
+You can check which namespace your current `kubectl` context uses:
+
+```bash
+kubectl config view --minify --output 'jsonpath={..namespace}'
+```
+
+---
+
+# 11. Make `dev` the Default Namespace for Current Context
+
+Run:
+
+```bash
+kubectl config set-context --current --namespace=dev
+```
+
+Now:
+
+```bash
+kubectl get pods
+```
+
+will automatically look in:
+
+```text
+dev
+```
+
+So you don't need to repeatedly write:
+
+```bash
+kubectl get pods -n dev
+```
+
+---
+
+# 12. Change Back to Default
+
+If you want `default` to be the current namespace again:
+
+```bash
+kubectl config set-context --current --namespace=default
+```
+
+Important:
+
+Changing the current namespace does **not** change or rename the Kubernetes `default` namespace.
+
+It only changes the namespace used automatically by your current `kubectl` context.
+
+---
+
+# 13. Important Commands
+
+| Command                                                | Purpose                    |
+| ------------------------------------------------------ | -------------------------- |
+| `kubectl get namespaces`                               | List namespaces            |
+| `kubectl create namespace dev`                         | Create namespace           |
+| `kubectl get pods -n dev`                              | List Pods in dev           |
+| `kubectl get deployments -n dev`                       | List Deployments in dev    |
+| `kubectl run nginx --image=nginx -n dev`               | Create Pod in dev          |
+| `kubectl apply -f file.yaml`                           | Create/update resource     |
+| `kubectl config set-context --current --namespace=dev` | Make dev current namespace |
+
+---
+
+# 14. Interview Questions
+
+### What is a Namespace?
+
+A Namespace is a logical mechanism used to organize and isolate Kubernetes resources within the same cluster.
+
+### Why do we use Namespaces?
+
+Namespaces help separate resources between environments, teams, or applications and make resource management easier.
+
+### Is a Namespace a separate cluster?
+
+No. Multiple namespaces can exist within the same Kubernetes cluster.
+
+### What is the default Namespace?
+
+`default` is the namespace used when no other namespace is specified and the current kubectl context is configured to use it.
+
+### How do you create a Namespace?
+
+```bash
+kubectl create namespace dev
+```
+
+### How do you get Pods from a specific Namespace?
+
+```bash
+kubectl get pods -n dev
+```
+
+### How do you create a resource inside a Namespace using YAML?
+
+Specify:
+
+```yaml
+metadata:
+  namespace: dev
+```
+
+### How do you make `dev` the default namespace for your current context?
+
+```bash
+kubectl config set-context --current --namespace=dev
+```
+
+---
+
+# 🧠 Day 9 Mental Model
+
+Remember:
+
+```text
+Kubernetes Cluster
+│
+├── default namespace
+│
+├── dev namespace
+│   └── nginx Deployment
+│       └── ReplicaSet
+│           ├── Pod
+│           └── Pod
+│
+└── other namespaces
+```
+
+And:
+
+```bash
+kubectl get pods
+```
+
+means:
+
+> Get Pods from the namespace configured in my current context.
+
+While:
+
+```bash
+kubectl get pods -n dev
+```
+
+means:
+
+> Get Pods specifically from the `dev` namespace.
+
+## Day 9 Status
+
+**Theory:** ✅ Complete
+
+**Hands-on:** ✅ Complete
+
+**Custom Namespace:** ✅
+
+**Application inside Namespace:** ✅
+
+**Current namespace configuration:** ✅
+
+### 🎉 Day 9 – COMPLETE
+
