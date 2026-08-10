@@ -1,0 +1,481 @@
+# Day 10 – ConfigMaps
+
+## 1. What is a ConfigMap?
+
+A **ConfigMap** is a Kubernetes object used to store **non-sensitive configuration data separately from the application**.
+
+Examples:
+
+```text
+APP_ENV=Production
+CITY=Bangalore
+PORT=8080
+LOG_LEVEL=debug
+```
+
+### Mental Model
+
+```text
+Application
+     │
+     │ needs configuration
+     ↓
+ ConfigMap
+     │
+     ↓
+Configuration values
+```
+
+The configuration is not hardcoded into the application itself.
+
+---
+
+## 2. Why not hardcode configuration?
+
+Suppose an application contains:
+
+```text
+APP_ENV=Production
+CITY=Bangalore
+PORT=8080
+```
+
+If these values are hardcoded into the application, changing configuration may require:
+
+```text
+Change application
+      ↓
+Build new application/image
+      ↓
+Deploy again
+```
+
+This is unnecessary when only configuration has changed.
+
+With ConfigMap:
+
+```text
+Application image
+       +
+ConfigMap
+       ↓
+Running application
+```
+
+The application and its configuration are kept separately.
+
+### Important point
+
+ConfigMap does **not** mean configuration will never change.
+
+If configuration changes, we may still need to change the ConfigMap.
+
+The benefit is:
+
+> **The application itself does not need to be changed just because its configuration changes.**
+
+---
+
+# 3. Same application, different configuration
+
+The same application image can be used in different environments.
+
+```text
+              myapp:v1
+                 │
+        ┌────────┼────────┐
+        ↓        ↓        ↓
+       Dev      Test      Prod
+        ↓        ↓        ↓
+      Config   Config   Config
+       Map      Map      Map
+```
+
+For example:
+
+```text
+Development:
+APP_ENV=development
+
+Testing:
+APP_ENV=test
+
+Production:
+APP_ENV=production
+```
+
+The application can remain the same while configuration differs.
+
+---
+
+# 4. What does "separate from application" mean?
+
+The configuration is stored as a **separate Kubernetes object**.
+
+For example:
+
+```text
+Kubernetes Cluster
+│
+├── ConfigMap
+│   └── app-config
+│
+└── Pod
+    └── Application
+```
+
+The Pod/application can be configured to consume the ConfigMap.
+
+A ConfigMap does not automatically attach itself to a Pod.
+
+The Pod must be explicitly configured to consume it.
+
+---
+
+# 5. ConfigMap vs Secret
+
+### ConfigMap
+
+Used for **non-sensitive** configuration:
+
+```text
+APP_ENV=Production
+PORT=8080
+CITY=Bangalore
+LOG_LEVEL=debug
+```
+
+### Secret
+
+Used for **sensitive** information:
+
+```text
+DB_PASSWORD=******
+API_TOKEN=******
+```
+
+### Easy rule
+
+> **ConfigMap → non-sensitive configuration**
+> **Secret → sensitive configuration**
+
+---
+
+# 6. Creating a ConfigMap
+
+We created a ConfigMap using:
+
+```bash
+kubectl create configmap app-cofig \
+  --from-literal=APP_ENC=Production \
+  --from-literal=CITY=Banglore
+```
+
+### What does `--from-literal` mean?
+
+It means:
+
+> Give Kubernetes the key-value pair directly in the command.
+
+For example:
+
+```bash
+--from-literal=APP_ENC=Production
+```
+
+means:
+
+```text
+Key   = APP_ENC
+Value = Production
+```
+
+And:
+
+```bash
+--from-literal=CITY=Banglore
+```
+
+means:
+
+```text
+Key   = CITY
+Value = Banglore
+```
+
+So the ConfigMap contains:
+
+```text
+app-cofig
+│
+├── APP_ENC = Production
+└── CITY    = Banglore
+```
+
+---
+
+# 7. Viewing a ConfigMap
+
+List ConfigMaps:
+
+```bash
+kubectl get configmaps
+```
+
+Get a specific ConfigMap:
+
+```bash
+kubectl get configmap app-cofig
+```
+
+See its details and values:
+
+```bash
+kubectl describe configmap app-cofig
+```
+
+Example:
+
+```text
+Name: app-cofig
+
+Data
+====
+APP_ENC:
+----
+Production
+
+CITY:
+----
+Banglore
+```
+
+---
+
+# 8. Using ConfigMap in a Pod
+
+Creating a ConfigMap alone does not make the Pod use it.
+
+We explicitly connect the ConfigMap to the Pod.
+
+Example:
+
+```yaml
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: config-pod
+
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+
+      env:
+        - name: APP_ENC
+          valueFrom:
+            configMapKeyRef:
+              name: app-cofig
+              key: APP_ENC
+```
+
+---
+
+# 9. Understanding `configMapKeyRef`
+
+This is the most important part of the YAML:
+
+```yaml
+valueFrom:
+  configMapKeyRef:
+    name: app-cofig
+    key: APP_ENC
+```
+
+Read it as English:
+
+> Take the value of the `APP_ENC` key from the ConfigMap named `app-cofig`.
+
+The ConfigMap contains:
+
+```text
+APP_ENC=Production
+```
+
+Therefore the container receives:
+
+```text
+APP_ENC=Production
+```
+
+---
+
+# 10. Complete Flow
+
+This is the most important mental model from today's topic:
+
+```text
+ConfigMap
+   │
+   │ app-cofig
+   │
+   └── APP_ENC=Production
+             │
+             │ configMapKeyRef
+             ↓
+            Pod
+             │
+             ↓
+         Container
+             │
+             ↓
+      APP_ENC=Production
+```
+
+So:
+
+> **ConfigMap stores the configuration → Pod consumes the configuration → Container/application gets the configuration.**
+
+---
+
+# 11. Verifying the Environment Variable
+
+We checked the environment inside the container using:
+
+```bash
+kubectl exec config-pod -- env
+```
+
+This displays all environment variables inside the container.
+
+Because there can be many variables, we can filter the output:
+
+```bash
+kubectl exec config-pod -- env | grep APP_ENC
+```
+
+Result:
+
+```text
+APP_ENC=Production
+```
+
+### `grep` mental model
+
+`grep` is useful when:
+
+> There is a lot of output and I only want lines containing a particular word.
+
+Example:
+
+```bash
+env | grep APP_ENC
+```
+
+means:
+
+```text
+env
+ ↓
+lots of output
+ ↓
+grep APP_ENC
+ ↓
+only lines containing APP_ENC
+```
+
+---
+
+# 12. Important YAML Structure
+
+For this particular Pod, remember the hierarchy rather than memorizing every line:
+
+```text
+Pod
+└── spec
+    └── containers
+        └── container
+            ├── name
+            ├── image
+            └── env
+                └── variable
+                    ├── name
+                    └── valueFrom
+                        └── configMapKeyRef
+                            ├── name
+                            └── key
+```
+
+### YAML indentation rule
+
+Each level goes approximately **2 spaces deeper**.
+
+Also remember:
+
+```yaml
+containers:
+  - name: nginx
+```
+
+and:
+
+```yaml
+env:
+  - name: APP_ENC
+```
+
+The `-` indicates an item in a list.
+
+---
+
+# 13. Day 10 Key Takeaways
+
+### ConfigMap
+
+> Stores non-sensitive configuration separately from the application.
+
+### Hardcoding
+
+> Configuration is embedded directly into the application, so changing configuration may require changing/rebuilding/redeploying the application.
+
+### `--from-literal`
+
+> Adds a key-value pair directly while creating a ConfigMap.
+
+### `configMapKeyRef`
+
+> Tells the Pod to get a particular key from a particular ConfigMap.
+
+### `grep`
+
+> Filters command output and shows only matching lines.
+
+### Overall flow
+
+```text
+ConfigMap
+    ↓
+Pod
+    ↓
+Container
+    ↓
+Application
+```
+
+## Day 10 Status
+
+**ConfigMap concept:** ✅
+
+**Why configuration should be separate:** ✅
+
+**ConfigMap vs Secret:** ✅
+
+**Create ConfigMap:** ✅
+
+**Use ConfigMap in Pod:** ✅
+
+**Read ConfigMap value inside container:** ✅
+
+### 🎉 Day 10 – COMPLETE
+
