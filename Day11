@@ -1,0 +1,256 @@
+Day 11 – Secrets 🔐
+1. What is a Secret?
+
+A Secret is a Kubernetes object used to store sensitive information such as:
+
+Database passwords
+API tokens
+Credentials
+Keys
+
+Example:
+
+DB_PASSWORD=MyPassword123
+API_TOKEN=xyz789
+Simple rule
+ConfigMap → Non-sensitive configuration
+Secret    → Sensitive information
+2. ConfigMap vs Secret
+ConfigMap	Secret
+Non-sensitive data	Sensitive data
+CITY=Bangalore	DB_PASSWORD=MyPassword123
+APP_ENV=Production	API_TOKEN=xyz789
+PORT=8080	Credentials
+
+Important: Base64 encoding used for Secret data is not encryption.
+
+Hands-on
+3. Create a Secret
+
+Command:
+
+kubectl create secret generic db-secret --from-literal=DB_PASSWORD=MyPassword123
+
+Output:
+
+secret/db-secret created
+--from-literal
+
+Means:
+
+Give Kubernetes the key-value directly in the command.
+
+Pattern:
+
+--from-literal=KEY=VALUE
+4. Check Secret
+kubectl get secret db-secret
+
+Example:
+
+NAME        TYPE     DATA   AGE
+db-secret   Opaque   1      ...
+
+DATA: 1 means the Secret contains one key.
+
+5. Describe Secret
+kubectl describe secret db-secret
+
+Output:
+
+Data
+====
+DB_PASSWORD:  13 bytes
+
+It shows the key, but not the actual password.
+
+6. View Secret in YAML
+kubectl get secret db-secret -o yaml
+
+-o means:
+
+Output format
+
+Example:
+
+data:
+  DB_PASSWORD: TXlQYXNzd29yZDEyMw==
+
+The value is Base64 encoded.
+
+Decode:
+
+echo 'TXlQYXNzd29yZDEyMw==' | base64 --decode
+
+Output:
+
+MyPassword123
+Remember:
+Base64 ≠ Encryption
+7. Use Secret as Environment Variable
+
+We can provide the Secret value to a container as an environment variable.
+
+env:
+  - name: DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: db-secret
+        key: DB_PASSWORD
+
+Meaning:
+
+secretKeyRef
+     ↓
+Look inside a Secret
+
+
+name: db-secret
+     ↓
+Which Secret?
+
+
+key: DB_PASSWORD
+     ↓
+Which value?
+
+Result inside the container:
+
+DB_PASSWORD=MyPassword123
+ConfigMap vs Secret reference
+ConfigMap → configMapKeyRef
+Secret    → secretKeyRef
+8. Mount Secret as a File
+
+Sometimes an application expects a credential as a file instead of an environment variable.
+
+We can mount the Secret into the container.
+
+Pod-level volumes
+volumes:
+  - name: secret-volume
+    secret:
+      secretName: db-secret
+
+Meaning:
+
+Create a volume called secret-volume using the Secret db-secret.
+
+Container-level volumeMounts
+volumeMounts:
+  - name: secret-volume
+    mountPath: /etc/app-secret
+
+Meaning:
+
+Make secret-volume available inside the container at /etc/app-secret.
+
+Result
+
+Secret:
+
+db-secret
+└── DB_PASSWORD
+
+becomes:
+
+/etc/app-secret/
+└── DB_PASSWORD
+
+The file contains:
+
+MyPassword123
+Important mental model
+volumes
+   ↓
+WHAT data?
+
+
+volumeMounts
+   ↓
+WHERE inside container?
+9. Complete Secret Mount Pod
+apiVersion: v1
+kind: Pod
+
+
+metadata:
+  name: secret-pod
+
+
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+
+
+      volumeMounts:
+        - name: secret-volume
+          mountPath: /etc/app-secret
+
+
+  volumes:
+    - name: secret-volume
+      secret:
+        secretName: db-secret
+
+Create:
+
+kubectl apply -f secret-pod.yaml
+
+Check:
+
+kubectl get pods
+10. Read Mounted Secret
+
+Check files:
+
+kubectl exec secret-pod -- ls /etc/app-secret
+
+Output:
+
+DB_PASSWORD
+
+Read the file:
+
+kubectl exec secret-pod -- cat /etc/app-secret/DB_PASSWORD
+
+Output:
+
+MyPassword123
+kubectl exec --
+
+The -- separates the kubectl command from the command we want to run inside the container.
+
+kubectl exec secret-pod -- ls /etc/app-secret
+
+means:
+
+Execute ls /etc/app-secret inside secret-pod.
+
+🧠 Day 11 — Final Mental Picture
+                    SECRET
+                  db-secret
+                      │
+              DB_PASSWORD
+                      │
+          ┌───────────┴───────────┐
+          ↓                       ↓
+   secretKeyRef               volumes
+          ↓                       ↓
+ Environment Variable       volumeMounts
+          ↓                       ↓
+DB_PASSWORD=MyPassword123  /etc/app-secret/
+                                  ↓
+                            DB_PASSWORD file
+                                  ↓
+                            MyPassword123
+Most important things to remember
+Secret → sensitive information
+ConfigMap → non-sensitive information
+secretKeyRef → Secret as environment variable
+volumes + volumeMounts → Secret as file
+-o yaml → show resource in YAML
+Base64 → encoding, not encryption
+ls → see files
+cat → read file contents
