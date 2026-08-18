@@ -1,0 +1,209 @@
+Day 12 – Volumes 💾
+1. Why do we need Volumes?
+
+Container filesystem data can be lost when the container is recreated.
+
+A Volume provides storage that can be mounted into a container.
+
+Pod
+ ↓
+Volume
+ ↓
+Container
+2. emptyDir
+
+emptyDir creates an empty directory for a Pod.
+
+volumes:
+  - name: my-storage
+    emptyDir: {}
+
+Mount it:
+
+volumeMounts:
+  - name: my-storage
+    mountPath: /data
+Important
+Container restart → data remains ✅
+Pod deleted       → data deleted ❌
+
+Remember:
+
+emptyDir = temporary Pod-level storage.
+
+3. hostPath
+
+hostPath uses a file/directory from the Node's filesystem.
+
+Example:
+
+hostPath:
+  path: /mnt/data
+
+Here:
+
+/mnt/data
+
+is a path on the Node, not inside the container.
+
+It can then be exposed inside the container at another path:
+
+Node                  Container
+/mnt/data   ───────→  /data
+
+Remember:
+
+hostPath = Node filesystem exposed to the Pod.
+
+4. Persistent Volume (PV)
+
+A PersistentVolume is a Kubernetes storage resource.
+
+Example:
+
+apiVersion: v1
+kind: PersistentVolume
+
+
+metadata:
+  name: my-pv
+
+
+spec:
+  capacity:
+    storage: 1Gi
+
+
+  accessModes:
+    - ReadWriteOnce
+
+
+  hostPath:
+    path: /mnt/data
+
+Think:
+
+PV = "I have storage available."
+
+Our PV:
+
+my-pv
+1Gi
+STATUS: Available
+Available
+
+Means:
+
+The PV exists but hasn't been claimed by a PVC yet.
+
+5. Persistent Volume Claim (PVC)
+
+A PVC is a request for storage.
+
+Example:
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+
+
+metadata:
+  name: my-pvc
+
+
+spec:
+  storageClassName: ""
+
+
+  accessModes:
+    - ReadWriteOnce
+
+
+  resources:
+    requests:
+      storage: 1Gi
+
+Think:
+
+PVC = "I need storage."
+
+When Kubernetes finds a suitable PV:
+
+PV
+my-pv
+1Gi
+   ↓
+ Bound
+   ↓
+PVC
+my-pvc
+1Gi
+Important statuses
+Available → PV is not claimed
+Bound     → PV is successfully claimed by a PVC
+6. Pod uses PVC
+
+The Pod does not normally directly use the PV.
+
+It uses the PVC.
+
+volumes:
+  - name: my-storage
+    persistentVolumeClaim:
+      claimName: my-pvc
+
+Then mount it inside the container:
+
+volumeMounts:
+  - name: my-storage
+    mountPath: /data
+
+Final relationship:
+
+Node
+/mnt/data
+    ↓
+PV
+my-pv
+    ↓
+PVC
+my-pvc
+    ↓
+Pod
+    ↓
+Container
+/data
+7. Hands-on commands
+
+Check PV:
+
+kubectl get pv
+
+Check PVC:
+
+kubectl get pvc
+
+Check Pod:
+
+kubectl get pods
+
+Check mounted files:
+
+kubectl exec pv-pod -- ls /data
+
+Read a file:
+
+kubectl exec pv-pod -- cat /data/test.txt
+
+We tested this and got:
+
+HelloKubernetes
+🧠 Day 12 in one line
+
+PV provides storage → PVC requests/claims storage → Pod uses the PVC → volume is mounted inside the container.
+
+And:
+
+emptyDir → temporary Pod storage
+hostPath → Node storage
+PV       → persistent storage resource
+PVC      → request for persistent storage
