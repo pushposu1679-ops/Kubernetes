@@ -1,0 +1,274 @@
+Day 13 – Rolling Updates & Rollbacks 🔄
+1. Why Rolling Updates?
+
+Suppose our application is running Version 1:
+
+Pod 1 → v1
+Pod 2 → v1
+Pod 3 → v1
+
+Now developers release Version 2.
+
+We don't want to do:
+
+❌ Delete all v1 Pods
+❌ Then create all v2 Pods
+
+Because this can cause downtime.
+
+Instead, Kubernetes gradually replaces v1 Pods with v2 Pods.
+
+v1  v1  v1
+ ↓
+v2  v1  v1
+ ↓
+v2  v2  v1
+ ↓
+v2  v2  v2
+Remember:
+
+Rolling Update = replace old Pods with new Pods in stages.
+
+"Gradually" means in steps, not necessarily slowly.
+
+2. Deployment → ReplicaSet → Pod
+
+A Deployment manages the rollout.
+
+Deployment
+    ↓
+ReplicaSet
+    ↓
+Pods
+
+Suppose Version 1 is running:
+
+Deployment
+    ↓
+ReplicaSet v1
+    ↓
+v1   v1   v1
+
+When we update to Version 2, Kubernetes creates a new ReplicaSet.
+
+It does NOT convert the old ReplicaSet.
+
+Deployment
+    │
+    ├── ReplicaSet v1
+    │      └── v1 Pods
+    │
+    └── ReplicaSet v2
+           └── v2 Pods
+
+During the update, Kubernetes decreases the number of Pods in v1 and increases the number of Pods in v2.
+
+3. What happens during a Rolling Update?
+
+Suppose:
+
+replicas: 3
+
+Initially:
+
+v1   v1   v1
+
+During the update:
+
+v1   v1
+v2   v2
+
+Then:
+
+v1
+v2   v2   v2
+
+Finally:
+
+v2   v2   v2
+
+The old ReplicaSet becomes:
+
+DESIRED = 0
+
+and the new ReplicaSet becomes:
+
+DESIRED = 3
+
+The old ReplicaSet itself can still remain in the cluster for revision history.
+
+4. Rollback
+
+Suppose Version 2 has a bug.
+
+Current state:
+
+v2   v2   v2
+
+We want to return to the previous working version:
+
+v1   v1   v1
+
+This is called a Rollback.
+
+Because Kubernetes retains the previous Deployment revision, it can bring the old version back.
+
+v1 → v2
+     ↓
+   Problem
+     ↓
+  Rollback
+     ↓
+v1
+Command:
+kubectl rollout undo deployment/my-app
+
+Think:
+
+rollout undo = go back to the previous revision
+
+5. Rollout History
+
+To see the Deployment's revisions:
+
+kubectl rollout history deployment/my-app
+
+Example:
+
+REVISION  CHANGE-CAUSE
+1
+2
+3
+
+Think:
+
+history = show me the Deployment's versions/revisions.
+
+6. Rollout Status
+
+To check whether the update has completed:
+
+kubectl rollout status deployment/my-app
+
+Example:
+
+deployment "my-app" successfully rolled out
+
+Think:
+
+status = tell me whether the rollout is finished.
+
+7. Update Strategy
+
+A Deployment determines how the Pods should be replaced using an update strategy.
+
+There are two important strategies for Day 13.
+
+RollingUpdate
+strategy:
+  type: RollingUpdate
+
+Old Pods are gradually replaced with new Pods.
+
+v1 v1 v1
+ ↓
+v2 v1 v1
+ ↓
+v2 v2 v1
+ ↓
+v2 v2 v2
+Advantage
+
+✅ Helps maintain availability during updates.
+
+Recreate
+strategy:
+  type: Recreate
+
+Kubernetes first removes the old Pods:
+
+v1 v1 v1
+ ↓
+(no Pods)
+ ↓
+v2 v2 v2
+Disadvantage
+
+❌ There can be downtime between the old and new versions.
+
+8. RollingUpdate vs Recreate
+Strategy	What happens
+RollingUpdate	Old Pods gradually replaced
+Recreate	Old Pods removed first, then new Pods created
+
+For normal application updates, RollingUpdate is commonly preferred when you want to avoid downtime.
+
+9. Revision History
+
+Old ReplicaSets are retained for rollback/history.
+
+By default:
+
+revisionHistoryLimit: 10
+
+This means Kubernetes keeps up to 10 old revisions.
+
+It is not a time limit.
+
+So don't think:
+
+"Kubernetes keeps v1 for 10 days."
+
+Think:
+
+"Kubernetes keeps a certain number of old revisions."
+
+10. Important Hands-on Commands
+Deploy
+kubectl apply -f deployment.yaml
+Check Deployment
+kubectl get deployment
+Check ReplicaSets
+kubectl get rs
+Check Pods
+kubectl get pods
+Check rollout status
+kubectl rollout status deployment/my-app
+Check rollout history
+kubectl rollout history deployment/my-app
+Rollback
+kubectl rollout undo deployment/my-app
+🧠 Day 13 Mental Picture
+
+This is the one picture I'd remember:
+
+                    Deployment
+                        │
+             ┌──────────┴──────────┐
+             ↓                     ↓
+       ReplicaSet v1          ReplicaSet v2
+             ↓                     ↓
+          v1 Pods               v2 Pods
+During update:
+v1 Pods ↓↓↓
+v2 Pods ↑↑↑
+After update:
+v1 → 0 Pods
+v2 → 3 Pods
+If v2 has a problem:
+v2
+ ↓
+rollout undo
+ ↓
+v1
+⭐ Day 13 in one sentence
+
+A Deployment uses ReplicaSets to gradually replace old Pods with new Pods during a RollingUpdate, while keeping revision history so we can rollback if the new version has a problem.
+
+Quick memory trick
+UPDATE  → rollout
+HISTORY → rollout history
+STATUS  → rollout status
+UNDO    → rollout undo
+
+Day 13 complete ✅
