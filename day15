@@ -1,0 +1,336 @@
+Day 15 – Jobs & CronJobs 🎯
+1. Job
+
+A Job is used when we want Kubernetes to run a task until it successfully finishes.
+
+Unlike a Deployment, the Pod created by a Job is not supposed to run continuously.
+
+Example:
+
+Deployment
+   ↓
+Pod
+   ↓
+Keep running 🔄
+
+Whereas:
+
+Job
+ ↓
+Pod
+ ↓
+Run task
+ ↓
+Finish
+ ↓
+Complete ✅
+
+Examples of tasks suitable for a Job:
+
+Database backup
+Generate a report
+Process some data
+Run a one-time script
+Core concept
+
+Job = Run a task → Finish → Done
+
+2. Job YAML
+
+We created job.yaml:
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: my-job
+        image: busybox
+        command: ["sh", "-c", "echo Hello Kubernetes"]
+      restartPolicy: Never
+Important fields
+kind: Job
+
+→ Tells Kubernetes to create a Job.
+
+image: busybox
+
+→ Container image used to execute the task.
+
+command: ["sh", "-c", "echo Hello Kubernetes"]
+
+→ The actual task the Pod will execute.
+
+restartPolicy: Never
+
+→ Don't restart the Pod after the task finishes.
+
+Flow
+Job
+ ↓
+Creates Pod
+ ↓
+Pod executes command
+ ↓
+"Hello Kubernetes"
+ ↓
+Command finishes
+ ↓
+Pod = Completed
+ ↓
+Job = Complete
+3. Understanding Job Output
+
+Command:
+
+kubectl get jobs
+
+Example:
+
+NAME     STATUS     COMPLETIONS
+my-job   Complete   1/1
+STATUS: Complete
+
+The task finished successfully.
+
+Complete is good for a Job. ✅
+
+COMPLETIONS: 1/1
+
+Means:
+
+1 required completion
+        ↓
+1 successful completion
+        ↓
+       1/1 ✅
+
+To see the Pod:
+
+kubectl get pods
+
+Example:
+
+my-job-phrc8   0/1   Completed
+
+Completed means the Pod finished its task successfully.
+
+To see what the task produced:
+
+kubectl logs job/my-job
+
+Output:
+
+Hello Kubernetes
+4. CronJob
+
+A CronJob is used when we want a task to run according to a schedule.
+
+Example:
+
+Run database backup every day at 2 AM.
+
+CronJob
+   ↓
+2 AM
+   ↓
+Job
+   ↓
+Pod
+   ↓
+Backup
+   ↓
+Complete
+
+At the next scheduled time, it happens again.
+
+2 AM → Job 1 → Pod 1 → Complete
+
+Next day 2 AM → Job 2 → Pod 2 → Complete
+
+Next day 2 AM → Job 3 → Pod 3 → Complete
+Core concept
+
+Job = Run once
+CronJob = Run according to a schedule
+
+5. CronJob → Job → Pod
+
+This relationship is very important.
+
+A CronJob does not directly create the Pod.
+
+CronJob
+   ↓
+creates Job
+   ↓
+Job creates Pod
+   ↓
+Pod runs task
+
+For repeated executions:
+
+                 CronJob
+                    ↓
+        ┌───────────┼───────────┐
+        ↓           ↓           ↓
+      Job 1       Job 2       Job 3
+        ↓           ↓           ↓
+      Pod 1       Pod 2       Pod 3
+        ↓           ↓           ↓
+    Complete    Complete    Complete
+Why a new Pod?
+
+Each scheduled execution is treated as a new execution of the task.
+
+We don't think of a Job Pod as a permanent application Pod that should be restarted again and again.
+
+6. CronJob YAML
+
+We created cronjob.yaml:
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: my-cronjob
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: my-cronjob
+            image: busybox
+            command: ["sh", "-c", "echo Hello from CronJob"]
+          restartPolicy: Never
+Important fields
+kind: CronJob
+
+→ Creates a CronJob.
+
+schedule: "* * * * *"
+
+→ Defines when the task should run.
+
+Here:
+
+* * * * *
+
+means:
+
+Every minute
+
+jobTemplate:
+
+→ Defines the Job that the CronJob will create.
+
+So:
+
+CronJob
+   ↓
+jobTemplate
+   ↓
+Job
+   ↓
+Pod
+7. CronJob Output
+
+Command:
+
+kubectl get cronjobs
+
+Example:
+
+NAME         SCHEDULE    SUSPEND   ACTIVE
+my-cronjob   * * * * *   False     0
+Important columns
+
+SCHEDULE
+
+* * * * *
+
+→ How often the CronJob runs.
+
+ACTIVE
+
+0
+
+→ Number of Jobs currently running.
+
+If the task finishes very quickly, you'll often see 0.
+
+Then:
+
+kubectl get jobs
+
+may show:
+
+NAME                  STATUS     COMPLETIONS
+my-cronjob-29795667   Complete   1/1
+my-cronjob-29795668   Complete   1/1
+my-cronjob-29795669   Complete   1/1
+
+This shows that multiple scheduled executions created multiple Jobs.
+
+8. Job vs CronJob vs Deployment
+Resource	Purpose	Pod behavior
+Deployment	Run application continuously	Keeps running
+Job	Run a task once	Runs → finishes
+CronJob	Run a task on schedule	Creates Jobs repeatedly
+Easy example
+Nginx web server
+       ↓
+Deployment
+One-time database backup
+       ↓
+Job
+Database backup every night
+       ↓
+CronJob
+🧠 Day 15 Mental Picture
+
+Remember this:
+
+Deployment
+    ↓
+  Pod
+    ↓
+Keep Running 🔄
+Job
+ ↓
+Pod
+ ↓
+Task
+ ↓
+Complete ✅
+CronJob
+   ↓
+Schedule
+   ↓
+ Job
+   ↓
+ Pod
+   ↓
+ Task
+   ↓
+Complete
+   ↓
+Next schedule
+   ↓
+New Job
+   ↓
+New Pod
+⭐ Day 15 in One Sentence
+
+A Job runs a task to completion, while a CronJob creates a new Job to run that task repeatedly according to a schedule.
+
+🔑 Quick Memory Trick
+DEPLOYMENT → Keep running
+JOB         → Run once → Finish
+CRONJOB     → Run on schedule
+
+Day 15 complete ✅
