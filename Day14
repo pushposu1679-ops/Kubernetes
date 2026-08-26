@@ -1,0 +1,479 @@
+Day 14 – Ingress 🌐
+1. Why Ingress?
+
+Suppose we have two applications running in Kubernetes:
+
+App 1 → Pod 1
+App 2 → Pod 2
+
+We need to allow users outside the cluster to access these applications.
+
+One option is to expose each application separately:
+
+App 1 → NodePort
+App 2 → NodePort
+
+For many applications, this becomes difficult to manage.
+
+Instead, we can use Ingress as a single entry point.
+
+                 One Entry Point
+                       ↓
+                    Ingress
+                   /       \
+                  ↓         ↓
+                App 1      App 2
+
+For example:
+
+app1.example.com → App 1
+
+app2.example.com → App 2
+
+So the same external entry point can be used to reach different applications.
+
+Remember:
+
+Ingress = a way to manage external HTTP/HTTPS traffic and route it to different Services.
+
+2. Ingress Controller
+
+An important thing to understand:
+
+Ingress itself does not actually process the traffic.
+
+Ingress contains the routing rules.
+
+Something needs to read those rules and actually route the requests.
+
+That component is the Ingress Controller.
+
+Think:
+
+Ingress
+   ↓
+Defines rules
+
+Ingress Controller
+   ↓
+Implements the rules
+
+Example:
+
+Ingress rule:
+
+app1.example.com → app1-service
+
+The Ingress Controller receives the request and routes it to:
+
+app1-service
+      ↓
+   App 1 Pod
+Simple definition:
+
+Ingress Controller is the component that receives external traffic and implements the routing rules defined by Ingress.
+
+Examples you may hear about:
+
+NGINX Ingress Controller
+Traefik
+Cilium Ingress Controller
+
+For Day 14, you don't need to learn their differences.
+
+Remember:
+
+Ingress = rules
+Ingress Controller = implements the rules
+
+3. Routing
+
+Ingress can route traffic based on the hostname.
+
+Suppose we have:
+
+app1.example.com
+app2.example.com
+
+The Ingress can contain:
+
+app1.example.com → app1-service
+
+app2.example.com → app2-service
+
+When the user requests:
+
+https://app1.example.com
+
+the hostname is:
+
+app1.example.com
+
+The Ingress Controller checks the hostname and routes the request:
+
+app1.example.com
+       ↓
+Ingress Controller
+       ↓
+app1-service
+       ↓
+App 1 Pod
+
+For App 2:
+
+app2.example.com
+       ↓
+Ingress Controller
+       ↓
+app2-service
+       ↓
+App 2 Pod
+Important idea:
+
+One external entry point can route traffic to different applications based on the hostname.
+
+4. Ingress Routing Flow
+
+This is the overall picture:
+
+                    User
+                      |
+                      ↓
+              External Entry Point
+                      |
+                      ↓
+              Ingress Controller
+                      |
+              ┌───────┴───────┐
+              ↓               ↓
+       app1.example.com   app2.example.com
+              ↓               ↓
+        app1-service      app2-service
+              ↓               ↓
+           App 1 Pod       App 2 Pod
+
+Think of the Ingress Controller as a traffic director.
+
+It looks at the incoming request and asks:
+
+"Which hostname did the user request?"
+
+Then it sends the request to the appropriate Service.
+
+5. Hands-on — Route Two Applications Through One Entry Point
+
+We created two applications.
+
+App 1
+
+Deployment:
+
+nginx-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app1
+  template:
+    metadata:
+      labels:
+        app: app1
+    spec:
+      containers:
+      - name: app1
+        image: nginx
+
+Apply:
+
+kubectl apply -f nginx-deployment.yaml
+
+Output:
+
+deployment.apps/app1 created
+App 1 Service
+app1-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: app1-service
+spec:
+  selector:
+    app: app1
+  ports:
+  - port: 80
+    targetPort: 80
+
+Apply:
+
+kubectl apply -f app1-service.yaml
+
+Output:
+
+service/app1-service created
+Service connection
+
+Remember:
+
+Pod label:
+
+app: app1
+
+Service:
+
+selector:
+  app: app1
+
+Therefore:
+
+Service
+   ↓
+selector app=app1
+   ↓
+Finds App1 Pod
+6. App 2
+
+We created another Deployment:
+
+nginx-deployment2.yaml
+
+with:
+
+app: app2
+
+Then we created:
+
+app2-service.yaml
+
+with:
+
+selector:
+  app: app2
+
+So now:
+
+app1-service → App 1 Pod
+
+app2-service → App 2 Pod
+
+We checked:
+
+kubectl get svc
+
+and got:
+
+NAME           TYPE        CLUSTER-IP       PORT(S)
+
+app1-service   ClusterIP   10.98.55.205     80/TCP
+app2-service   ClusterIP   10.102.208.108   80/TCP
+What does ClusterIP mean?
+
+ClusterIP is the default Service type.
+
+It provides an internal Service IP inside the Kubernetes cluster.
+
+For our architecture:
+
+Ingress
+   ↓
+ClusterIP Service
+   ↓
+Pod
+
+We don't need to expose each application directly.
+
+7. Create Ingress
+
+We created:
+
+ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-ingress
+spec:
+  rules:
+  - host: app1.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: app1-service
+            port:
+              number: 80
+
+  - host: app2.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: app2-service
+            port:
+              number: 80
+
+Apply:
+
+kubectl apply -f ingress.yaml
+
+Output:
+
+ingress.networking.k8s.io/my-ingress created
+8. Understanding Our Ingress YAML
+First rule
+host: app1.example.com
+
+means:
+
+app1.example.com
+       ↓
+app1-service
+       ↓
+App 1 Pod
+Second rule
+host: app2.example.com
+
+means:
+
+app2.example.com
+       ↓
+app2-service
+       ↓
+App 2 Pod
+
+Therefore:
+
+app1.example.com → app1-service → App1
+
+app2.example.com → app2-service → App2
+9. Check Ingress
+
+Command:
+
+kubectl get ingress
+
+We got:
+
+NAME         CLASS    HOSTS
+my-ingress   <none>   app1.example.com,app2.example.com
+Important columns
+
+NAME
+
+my-ingress
+
+Name of our Ingress resource.
+
+CLASS
+
+<none>
+
+No IngressClass was configured in our Killercoda cluster.
+
+HOSTS
+
+app1.example.com,app2.example.com
+
+These are the hostnames for our routing rules.
+
+ADDRESS
+
+This was blank in our environment because there was no configured Ingress Controller providing an external address.
+
+10. Why We Couldn't Fully Test the External Routing
+
+This is important for our Killercoda hands-on.
+
+We successfully created:
+
+App 1                 ✅
+App 2                 ✅
+Services              ✅
+Ingress rules         ✅
+
+But the Killercoda environment we were using did not have an Ingress Controller configured to process these rules.
+
+We checked:
+
+kubectl get ingressclass
+
+and got:
+
+No resources found
+
+Therefore, our Ingress resource existed, but there was no configured controller to actually serve the external requests.
+
+Don't confuse these two:
+Ingress resource
+      ↓
+Stores routing rules
+
+versus:
+
+Ingress Controller
+      ↓
+Actually handles traffic
+
+For this learning exercise, we did not install or modify Cilium/another controller just to force the demo to work.
+
+11. Important Commands
+Check Pods
+kubectl get pods
+Check Services
+kubectl get svc
+Check Ingress
+kubectl get ingress
+Detailed Ingress information
+kubectl describe ingress my-ingress
+Check IngressClass
+kubectl get ingressclass
+Check Pods in all namespaces
+kubectl get pods -A
+🧠 Day 14 Mental Picture
+
+This is the one picture I'd remember:
+
+                         User
+                           |
+                           ↓
+                     One Entry Point
+                           |
+                           ↓
+                  Ingress Controller
+                           |
+                    ┌──────┴──────┐
+                    ↓             ↓
+          app1.example.com   app2.example.com
+                    ↓             ↓
+             app1-service    app2-service
+                    ↓             ↓
+                 App 1 Pod      App 2 Pod
+
+The routing logic:
+
+app1.example.com → app1-service
+
+app2.example.com → app2-service
+⭐ Day 14 in One Sentence
+
+Ingress provides routing rules for external HTTP/HTTPS traffic, while an Ingress Controller implements those rules and routes requests to the appropriate Kubernetes Services.
+
+🔑 Quick Memory Trick
+INGRESS       → Routing rules
+CONTROLLER    → Implements rules
+HOSTNAME      → Helps decide where traffic goes
+SERVICE       → Sends traffic to Pods
+
+Or even simpler:
+
+Ingress = WHAT
+Ingress Controller = HOW
+Routing = WHERE
+
+Day 14 complete ✅
