@@ -1,0 +1,287 @@
+Day 16 – Autoscaling 📈
+1. Horizontal Pod Autoscaler (HPA)
+
+Normally, we decide how many Pods an application should have.
+
+For example:
+
+Deployment
+    ↓
+3 Pods
+
+But application load can change.
+
+More traffic
+    ↓
+Higher CPU usage
+    ↓
+Need more Pods
+
+Instead of manually changing the replica count, HPA automatically increases or decreases the number of Pods based on metrics.
+
+Low usage  → Fewer Pods
+High usage → More Pods
+Core concept
+
+HPA = Automatically adjusts the number of Pods based on observed metrics.
+
+Why "Horizontal"?
+
+Horizontal scaling means adding or removing Pods.
+
+1 Pod → 3 Pods → 5 Pods
+
+We are not making one Pod bigger.
+
+2. Metrics Server
+
+HPA needs current resource usage information such as:
+
+CPU usage
+Memory usage
+
+Metrics Server provides these resource metrics.
+
+Think:
+
+Metrics Server
+      ↓
+"CPU usage is 80%"
+      ↓
+HPA
+      ↓
+"Target is 50%, increase Pods"
+Remember:
+
+Metrics Server = Provides the metrics
+HPA = Uses the metrics to make scaling decisions
+
+3. HPA Flow
+
+The complete picture:
+
+                Application
+                     ↓
+                 Pods
+                     ↓
+              Resource usage
+                     ↓
+              Metrics Server
+                     ↓
+                    HPA
+                ↙         ↘
+         More Pods      Fewer Pods
+
+Example:
+
+Traffic increases
+      ↓
+CPU increases
+      ↓
+Metrics Server reports CPU
+      ↓
+HPA compares CPU with target
+      ↓
+HPA increases Pods
+4. HPA YAML
+
+We created an application Deployment first because HPA needs something to scale.
+
+Deployment:
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hpa-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hpa-app
+  template:
+    metadata:
+      labels:
+        app: hpa-app
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        resources:
+          requests:
+            cpu: 100m
+
+Important:
+
+resources:
+  requests:
+    cpu: 100m
+
+This gives Kubernetes a CPU request that can be used when calculating CPU utilization for the HPA.
+
+5. HPA Configuration
+
+We created hpa.yaml:
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hpa-app
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+Important fields
+scaleTargetRef:
+
+→ Tells HPA which Deployment to scale.
+
+Here:
+
+Deployment/hpa-app
+minReplicas: 1
+
+→ HPA will not reduce the Pods below 1.
+
+maxReplicas: 5
+
+→ HPA will not increase the Pods above 5.
+
+So:
+
+1 ≤ Pods ≤ 5
+averageUtilization: 50
+
+→ Target average CPU utilization is 50%.
+
+Conceptually:
+
+CPU higher than target
+        ↓
+More Pods
+
+CPU lower than target
+        ↓
+Fewer Pods
+6. Hands-on – Checking Metrics Server
+
+We checked:
+
+kubectl get deployment -n kube-system
+
+Initially, there was no metrics-server.
+
+We installed it and then saw:
+
+metrics-server   0/1   1   0
+
+The Metrics Server Pod was:
+
+Running
+
+but:
+
+0/1
+
+meaning it was not Ready.
+
+We also tested:
+
+kubectl top pods
+
+and:
+
+kubectl top nodes
+
+Both returned:
+
+Metrics API not available
+
+Therefore, the Metrics Server in our free Killercoda environment was not providing resource metrics.
+
+7. HPA Output
+
+After creating the HPA:
+
+kubectl get hpa
+
+we saw:
+
+NAME      REFERENCE            TARGETS              MINPODS   MAXPODS   REPLICAS
+hpa-app   Deployment/hpa-app   cpu: <unknown>/50%   1         5         0
+What does this mean?
+cpu: <unknown>/50%
+
+means:
+
+Current CPU → Unknown ❌
+Target CPU  → 50%
+
+HPA knows its target is 50%, but it cannot get the current CPU metric because the Metrics API isn't available.
+
+kubectl describe hpa hpa-app confirmed:
+
+FailedGetResourceMetric
+
+and:
+
+unable to fetch metrics from resource metrics API
+Important:
+
+Our HPA configuration was created successfully; actual scaling could not be observed because Metrics Server was not providing metrics in the Killercoda environment.
+
+🧠 Day 16 Mental Picture
+                 Deployment
+                     ↓
+                    Pods
+                     ↓
+              CPU / Memory usage
+                     ↓
+              Metrics Server
+                     ↓
+                    HPA
+                     ↓
+          ┌──────────┴──────────┐
+          ↓                     ↓
+     Increase Pods          Decrease Pods
+
+Example:
+
+1 Pod
+ ↓
+CPU becomes high
+ ↓
+HPA
+ ↓
+3 Pods
+
+Later:
+
+3 Pods
+ ↓
+CPU becomes low
+ ↓
+HPA
+ ↓
+1 Pod
+⭐ Day 16 in One Sentence
+
+Metrics Server provides resource usage metrics, and HPA uses those metrics to automatically increase or decrease the number of Pods within the configured minimum and maximum limits.
+
+🔑 Quick Memory Trick
+METRICS SERVER → "What is the current usage?"
+
+HPA            → "How many Pods do I need?"
+
+HORIZONTAL     → "Add/remove Pods"
+
+Day 16 complete ✅
