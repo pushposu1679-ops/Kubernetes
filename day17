@@ -1,0 +1,182 @@
+Day 17 – Resource Requests & Limits ⚙️
+1. Requests
+
+A request tells Kubernetes how much CPU and memory a container needs for scheduling.
+
+Example:
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+Think:
+
+Request = What the container needs.
+
+Kubernetes uses the request when deciding which Node has enough available resources to run the Pod.
+
+Pod
+ ↓
+Requests resources
+ ↓
+Scheduler finds suitable Node
+ ↓
+Pod gets scheduled
+2. Limits
+
+A limit defines the maximum CPU and memory a container is allowed to use.
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+Think:
+
+Limit = Maximum the container can use.
+
+So:
+
+Request → Needed for scheduling
+Limit   → Maximum allowed
+3. CPU
+
+CPU is measured in millicores (m).
+
+1000m = 1 CPU
+500m  = 0.5 CPU
+100m  = 0.1 CPU
+
+Example:
+
+requests:
+  cpu: 100m
+
+limits:
+  cpu: 500m
+
+Means:
+
+CPU needed for scheduling → 100m
+Maximum CPU allowed       → 500m
+CPU limit
+
+If the container tries to use more CPU than its limit, CPU can be throttled.
+
+Throttling = restricting/slowing CPU usage to the allowed limit.
+
+4. Memory
+
+Memory is commonly specified using Mi or Gi.
+
+Example:
+
+requests:
+  memory: 128Mi
+
+limits:
+  memory: 256Mi
+
+Means:
+
+Memory needed for scheduling → 128Mi
+Maximum memory allowed       → 256Mi
+
+Unlike CPU, memory cannot simply be throttled.
+
+If the container exceeds its memory limit, it can be:
+
+OOMKilled
+
+OOM = Out Of Memory
+
+5. Complete YAML
+
+We created resources-pod.yaml:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: resources-pod
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+Apply:
+
+kubectl apply -f resources-pod.yaml
+
+Check:
+
+kubectl get pod resources-pod
+
+Example:
+
+NAME            READY   STATUS
+resources-pod   1/1     Running
+6. Verify Resources
+
+Command:
+
+kubectl describe pod resources-pod
+
+Important section:
+
+Limits:
+  cpu:     500m
+  memory:  256Mi
+
+Requests:
+  cpu:     100m
+  memory:  128Mi
+
+Our Pod was successfully scheduled to:
+
+Node: node01
+
+This demonstrates that Kubernetes successfully found a Node where the requested resources could be accommodated.
+
+🧠 Day 17 Mental Picture
+                  Pod
+                   │
+          ┌────────┴────────┐
+          ↓                 ↓
+      REQUESTS            LIMITS
+          ↓                 ↓
+   "I need this much"   "Don't give me
+                         more than this"
+          ↓                 ↓
+      Scheduling        Maximum usage
+
+Example:
+
+CPU:
+Request = 100m
+Limit   = 500m
+
+Memory:
+Request = 128Mi
+Limit   = 256Mi
+⭐ Day 17 in One Sentence
+
+Requests tell Kubernetes how much CPU/memory a container needs for scheduling, while limits define the maximum CPU/memory it is allowed to use.
+
+🔑 Quick Memory Trick
+REQUEST → Need → Scheduling
+
+LIMIT   → Maximum → Usage
+
+CPU     → Throttle if limit reached
+
+Memory  → Can be OOMKilled if limit exceeded
+
+Day 17 complete ✅
