@@ -1,0 +1,296 @@
+# Day 18 – Health Checks
+
+## Health Checks
+
+Kubernetes uses **Probes** to check the health and status of containers.
+
+There are 3 important probes:
+
+1. **Liveness Probe**
+2. **Readiness Probe**
+3. **Startup Probe**
+
+---
+
+# 1. Liveness Probe
+
+### What does it check?
+
+> **“Is the application still alive?”**
+
+If the liveness probe repeatedly fails, Kubernetes **restarts the container**.
+
+### Mental Memory
+
+**Liveness = Should I restart you?**
+
+### YAML
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /
+    port: 80
+  initialDelaySeconds: 5
+  periodSeconds: 10
+```
+
+### Important fields
+
+* `httpGet` → Kubernetes sends an HTTP request.
+* `path: /` → checks this URL path.
+* `port: 80` → checks port 80.
+* `initialDelaySeconds: 5` → wait 5 seconds before starting the probe.
+* `periodSeconds: 10` → check every 10 seconds.
+
+### If it fails
+
+```text
+Liveness fails
+      ↓
+Container restarts
+```
+
+---
+
+# 2. Readiness Probe
+
+### What does it check?
+
+> **“Is the application ready to receive traffic?”**
+
+If the readiness probe fails:
+
+* Pod becomes **Not Ready**
+* Service stops sending traffic to that Pod
+* Container **is NOT restarted**
+
+### Mental Memory
+
+**Readiness = Are you ready for traffic?**
+
+### YAML
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /
+    port: 80
+  initialDelaySeconds: 5
+  periodSeconds: 10
+```
+
+### If it fails
+
+```text
+Readiness fails
+      ↓
+Pod becomes Not Ready
+      ↓
+Service stops sending traffic
+      ↓
+Container keeps running
+```
+
+---
+
+# 3. Startup Probe
+
+### What does it check?
+
+> **“Has the application finished starting?”**
+
+Used for applications that take a long time to start.
+
+Kubernetes waits for the startup probe to succeed before normal liveness/readiness checking takes over.
+
+### Mental Memory
+
+**Startup = Have you finished starting?**
+
+### YAML
+
+```yaml
+startupProbe:
+  httpGet:
+    path: /
+    port: 80
+  failureThreshold: 30
+  periodSeconds: 2
+```
+
+### Important fields
+
+* `failureThreshold: 30` → allows up to 30 failed checks.
+* `periodSeconds: 2` → checks every 2 seconds.
+
+So the application gets time to start instead of being restarted too early by the liveness probe.
+
+---
+
+# Complete YAML – All 3 Probes
+
+```yaml
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: probes-pod
+
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+
+    ports:
+    - containerPort: 80
+
+    livenessProbe:
+      httpGet:
+        path: /
+        port: 80
+      initialDelaySeconds: 5
+      periodSeconds: 10
+
+    readinessProbe:
+      httpGet:
+        path: /
+        port: 80
+      initialDelaySeconds: 5
+      periodSeconds: 10
+
+    startupProbe:
+      httpGet:
+        path: /
+        port: 80
+      failureThreshold: 30
+      periodSeconds: 2
+```
+
+---
+
+# Hands-on Results
+
+## Readiness Probe Failure
+
+Changed:
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /wrong
+```
+
+Result:
+
+```text
+READY       0/1
+STATUS      Running
+RESTARTS    0
+```
+
+**Conclusion:** Readiness failure does **not** restart the container.
+
+---
+
+## Liveness Probe Failure
+
+Changed:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /wrong
+```
+
+Nginx returned:
+
+```text
+404
+```
+
+Result:
+
+```text
+STATUS             CrashLoopBackOff
+RESTARTS           4
+```
+
+Event:
+
+```text
+Liveness probe failed: HTTP probe failed with statuscode: 404
+```
+
+**Conclusion:** Liveness failure causes the container to restart.
+
+---
+
+# Liveness vs Readiness vs Startup
+
+| Probe         | Question                    | Failure Result                  |
+| ------------- | --------------------------- | ------------------------------- |
+| **Startup**   | Have you finished starting? | Gives application time to start |
+| **Readiness** | Are you ready for traffic?  | Pod becomes Not Ready           |
+| **Liveness**  | Are you still alive?        | Container restarts              |
+
+### Easy Memory
+
+> **Startup → “Have you started?”**
+> **Readiness → “Can you take traffic?”**
+> **Liveness → “Are you alive?”**
+
+### Most Important
+
+**Liveness → Restart**
+
+**Readiness → No Traffic**
+
+**Startup → Give Time**
+
+---
+
+# Useful Commands
+
+Check Pod:
+
+```bash
+kubectl get pod probes-pod
+```
+
+Detailed Pod information:
+
+```bash
+kubectl describe pod probes-pod
+```
+
+Check only readiness information:
+
+```bash
+kubectl describe pod probes-pod | grep -A 5 "Readiness"
+```
+
+Delete Pod:
+
+```bash
+kubectl delete pod probes-pod
+```
+
+Recreate from YAML:
+
+```bash
+kubectl apply -f probes-pod.yaml
+```
+
+---
+
+# Interview Question
+
+### Q: What is the difference between Liveness and Readiness Probe?
+
+**Answer:**
+
+Liveness checks whether the application is still alive. If it repeatedly fails, Kubernetes restarts the container.
+
+Readiness checks whether the application is ready to receive traffic. If it fails, the Pod is marked Not Ready and traffic is stopped, but the container is not restarted.
+
